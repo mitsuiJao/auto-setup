@@ -92,3 +92,7 @@ python teacher_app.py
 - 先生PC・生徒PC ともに WinRM が有効（setup スクリプトで設定）
 - 生徒PC に Python + selenium インストール済み
 - ChromeDriver が PATH に通っている、またはシステムに Chrome がインストール済み
+
+
+## 補足
+@memorandum

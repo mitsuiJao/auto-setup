@@ -1,0 +1,12 @@
+# 既存の共有を削除
+Remove-SmbShare -Name "lessons" -Force
+
+# 新しいフォルダを共有（例：ユーザーフォルダ以下）
+New-SmbShare -Name "lessons" -Path "C:\Users\nishi\lessons" -FullAccess "Everyone"
+
+
+
+"mkcd_share": "\\\\TEACHER-PC\\lessons\\"
+
+共有名（lessons）を変えない限り、ここのパスは変わりません。
+共有名も変えたい場合は合わせて修正：
