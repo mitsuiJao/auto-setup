@@ -4,6 +4,7 @@ teacher_app.py からの HTTP POST を受けて agent.py を起動する
 """
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +13,16 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 PORT = 8080
 SCHOOL_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Local", "school")
 AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
+LOG_FILE = os.path.join(SCHOOL_DIR, "trigger_server.log")
+
+# pythonw.exe はコンソールがないのでファイルにログを書く
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    encoding="utf-8",
+)
+log = logging.getLogger(__name__)
 
 
 def _load_token():
@@ -33,7 +44,7 @@ TRIGGER_TOKEN = _load_token()
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        print(f"[{self.client_address[0]}] {format % args}", flush=True)
+        log.info("[%s] %s", self.client_address[0], format % args)
 
     def do_POST(self):
         if self.path != "/start":
@@ -50,6 +61,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # トークン認証
         if TRIGGER_TOKEN and payload.get("token") != TRIGGER_TOKEN:
+            log.warning("認証失敗: token不一致")
             self._respond(403, {"error": "forbidden"})
             return
 
@@ -69,10 +81,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             # CREATE_NEW_CONSOLE でユーザーセッションの新しいウィンドウとして起動
             subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
-            print(f"[trigger_server] agent.py を起動しました", flush=True)
+            log.info("agent.py を起動しました")
             self._respond(200, {"status": "ok"})
         except Exception as e:
-            print(f"[trigger_server] 起動エラー: {e}", flush=True)
+            log.error("起動エラー: %s", e)
             self._respond(500, {"error": str(e)})
 
     def _respond(self, code: int, data: dict):
@@ -85,9 +97,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"[trigger_server] ポート {PORT} で待機中... (Ctrl+C で停止)", flush=True)
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    log.info("ポート %d で待機開始", PORT)
     try:
+        server = HTTPServer(("0.0.0.0", PORT), Handler)
         server.serve_forever()
-    except KeyboardInterrupt:
-        print("[trigger_server] 停止", flush=True)
+    except Exception as e:
+        log.critical("サーバー起動失敗: %s", e)
+        raise

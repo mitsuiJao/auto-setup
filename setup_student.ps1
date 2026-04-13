@@ -71,13 +71,16 @@ if (Test-Path $envSrc) {
 
 # --- ポート 8080 のファイアウォール開放 ---
 Write-Host "ポート 8080 (trigger_server) をファイアウォールで開放しています..."
-netsh advfirewall firewall add rule `
-    name="SchoolTriggerServer" `
-    dir=in `
-    action=allow `
-    protocol=TCP `
-    localport=8080 | Out-Null
-Write-Host "[OK] ポート 8080 を開放しました"
+# 既存ルールを削除してから再作成（冪等性のため）
+Remove-NetFirewallRule -DisplayName "SchoolTriggerServer" -ErrorAction SilentlyContinue
+New-NetFirewallRule `
+    -DisplayName "SchoolTriggerServer" `
+    -Direction Inbound `
+    -Action Allow `
+    -Protocol TCP `
+    -LocalPort 8080 `
+    -Profile Any | Out-Null
+Write-Host "[OK] ポート 8080 を開放しました（全プロファイル対象）"
 
 # --- Python / pip の確認 ---
 try {
@@ -92,24 +95,43 @@ Write-Host "selenium をインストールしています..."
 pip install selenium --quiet
 Write-Host "[OK] selenium のインストール完了"
 
-# --- trigger_server.py をログオン時自動起動タスクに登録 ---
-Write-Host "trigger_server.py をスタートアップタスクに登録しています..."
-$pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
-if ($null -eq $pythonExe) {
-    Write-Warning "python.exe が見つかりません。タスク登録をスキップします。"
+# --- trigger_server.py をスタートアップフォルダに登録（VBS経由で非表示起動） ---
+Write-Host "trigger_server.py をスタートアップに登録しています..."
+$pythonwExe = (Get-Command pythonw -ErrorAction SilentlyContinue).Source
+if ($null -eq $pythonwExe) {
+    # python.exe があれば pythonw.exe は同フォルダにあるはず
+    $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+    if ($null -ne $pythonExe) {
+        $pythonwExe = Join-Path (Split-Path $pythonExe) "pythonw.exe"
+    }
+}
+if ($null -eq $pythonwExe -or -not (Test-Path $pythonwExe)) {
+    Write-Warning "pythonw.exe が見つかりません。スタートアップ登録をスキップします。"
 } else {
-    $taskCmd = "`"$pythonExe`" `"$serverDst`""
-    schtasks /create `
-        /tn "SchoolTriggerServer" `
-        /tr $taskCmd `
-        /sc onlogon `
-        /ru $env:USERNAME `
-        /it /f | Out-Null
-    Write-Host "[OK] スタートアップタスク 'SchoolTriggerServer' を登録しました"
+    # ログオン時に非表示で起動する VBScript をスタートアップフォルダに配置
+    $startupDir = [System.Environment]::GetFolderPath("Startup")
+    $vbsPath = "$startupDir\SchoolTriggerServer.vbs"
+    $vbsContent = @"
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """$pythonwExe"" ""$serverDst""", 0, False
+"@
+    Set-Content -Path $vbsPath -Value $vbsContent -Encoding UTF8
+    Write-Host "[OK] スタートアップ登録: $vbsPath"
 
-    # 今すぐ起動
-    schtasks /run /tn "SchoolTriggerServer" | Out-Null
-    Write-Host "[OK] trigger_server.py を起動しました（ポート 8080）"
+    # 今すぐ起動（既存プロセスを停止してから）
+    Get-Process -Name "pythonw" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like "*trigger_server*" } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Process -FilePath $pythonwExe -ArgumentList "`"$serverDst`"" -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+
+    # 起動確認
+    $listening = netstat -an 2>$null | Select-String ":8080"
+    if ($listening) {
+        Write-Host "[OK] trigger_server.py が起動しました（ポート 8080）" -ForegroundColor Green
+    } else {
+        Write-Warning "ポート 8080 が確認できません。再起動後に自動起動します。"
+    }
 }
 
 # --- コンピュータ名の変更 ---
