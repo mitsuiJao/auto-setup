@@ -18,7 +18,7 @@ FONT = ("Yu Gothic", 11)
 FONT_BOLD = ("Yu Gothic", 11, "bold")
 AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
 WEEKDAY_NAMES = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
-DETECTION_TIMEOUT = 30  # PC検出のタイムアウト（秒）
+DETECTION_TIMEOUT = 60  # PC検出のタイムアウト（秒）
 
 
 def load_data():
@@ -46,36 +46,26 @@ def load_mkcd_map():
     return displays, file_to_disp, disp_to_file
 
 
-def detect_pc_names():
-    """ARP テーブルから PC-XX 形式のコンピュータを検出"""
-    print("[検出開始] ネットワーク上のPC検出中...")
+def detect_pc_names(max_pc: int = 30):
+    """PC-01〜PC-{max_pc} に直接ホスト名でpingして応答があったPCを返す"""
+    print(f"[検出開始] PC-01〜PC-{max_pc:02d} に接続確認中...")
 
-    ps_script = """
+    ps_script = f"""
 $ErrorActionPreference = "SilentlyContinue"
-$pcs = @()
 
-# ARP テーブルから PC-XX 形式のホスト名を抽出
-arp -a | ForEach-Object {
-    if ($_ -match '\\s+([A-Z0-9-]+)\\s+') {
-        $hostname = $matches[1]
-        # PC-01 などの形式のホスト名のみ処理
-        if ($hostname -match '^PC-\\d{2}$') {
-            # ping でテスト
-            $pingResult = Test-Connection -ComputerName $hostname -Count 1 -Quiet -TimeoutSeconds 1
-            if ($pingResult) {
-                $pcs += $hostname
-                Write-Host "[OK] $hostname" -ForegroundColor Green
-            }
-        }
-    }
-}
+$jobs = 1..{max_pc} | ForEach-Object {{
+    $name = "PC-{{0:D2}}" -f $_
+    $p = [System.Net.NetworkInformation.Ping]::new()
+    [PSCustomObject]@{{ Name = $name; Task = $p.SendPingAsync($name, 1000); Pinger = $p }}
+}}
+[System.Threading.Tasks.Task]::WaitAll($jobs.Task)
 
-# 結果を出力
-if ($pcs.Count -gt 0) {
-    $pcs | Sort-Object | Select-Object -Unique
-} else {
-    Write-Host "[結果] PC が見つかりません" -ForegroundColor Yellow
-}
+$jobs | ForEach-Object {{
+    if ($_.Task.Result.Status -eq 'Success') {{
+        Write-Host "[OK] $($_.Name)"
+    }}
+    $_.Pinger.Dispose()
+}}
 """
 
     try:
@@ -84,17 +74,19 @@ if ($pcs.Count -gt 0) {
             capture_output=True, text=True, timeout=DETECTION_TIMEOUT
         )
 
-        print(result.stdout)  # デバッグ出力
+        print(result.stdout)
 
-        lines = result.stdout.strip().split('\n')
-        pc_list = [line.strip() for line in lines if line.strip().startswith('PC-')]
+        pc_list = sorted([
+            line.strip().replace("[OK] ", "")
+            for line in result.stdout.strip().split('\n')
+            if line.strip().startswith("[OK]")
+        ])
 
         if pc_list:
-            pc_list = sorted(list(set(pc_list)))  # 重複削除とソート
-            print(f"[検出完了] {len(pc_list)} 台のPC を検出しました: {', '.join(pc_list)}")
+            print(f"[検出完了] {len(pc_list)} 台を検出: {', '.join(pc_list)}")
             return pc_list
         else:
-            print("[検出] ARP テーブルに PC-XX 形式のホスト が見つかりません")
+            print("[検出] 応答するPCが見つかりません")
 
     except subprocess.TimeoutExpired:
         print("[タイムアウト] PC検出がタイムアウトしました")
@@ -103,7 +95,7 @@ if ($pcs.Count -gt 0) {
 
     # フォールバック: デフォルトのPC リスト
     fallback_pcs = [f"PC-{i:02d}" for i in range(1, 10)]
-    print(f"[デフォルト] PC-01～PC-09 を使用します")
+    print("[デフォルト] PC-01～PC-09 を使用します")
     return fallback_pcs
 
 
