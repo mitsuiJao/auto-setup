@@ -29,17 +29,17 @@ def login(driver, site_url, login_id, login_pw):
     wait = WebDriverWait(driver, 30)
 
     # TODO: ログインIDフィールドのセレクタを実際のサイトに合わせて変更してください
-    id_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='username']")))
+    id_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='uid']")))
     id_field.clear()
     id_field.send_keys(login_id)
 
     # TODO: パスワードフィールドのセレクタを実際のサイトに合わせて変更してください
-    pw_field = driver.find_element(By.CSS_SELECTOR, "input[name='password']")
+    pw_field = driver.find_element(By.CSS_SELECTOR, "input[name='pwd']")
     pw_field.clear()
     pw_field.send_keys(login_pw)
 
     # TODO: ログインボタンのセレクタを実際のサイトに合わせて変更してください
-    submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+    submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='order']")
     submit_btn.click()
 
     # TODO: ログイン後に到達するURLや要素のセレクタを実際のサイトに合わせて変更してください

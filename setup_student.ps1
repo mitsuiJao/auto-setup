@@ -1,4 +1,4 @@
-﻿# setup_student.ps1 - 生徒PC初期設定スクリプト（1回だけ実行）
+# setup_student.ps1 - 生徒PC初期設定スクリプト（1回だけ実行）
 # 管理者権限で実行してください
 
 $ErrorActionPreference = "Stop"
@@ -49,11 +49,35 @@ if (Test-Path $agentSrc) {
     Write-Warning "agent.py が見つかりません: $agentSrc"
 }
 
-# --- WinRM (PowerShell Remoting) を有効化 ---
-Write-Host "WinRM を有効化しています..."
-Enable-PSRemoting -Force | Out-Null
-Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
-Write-Host "[OK] WinRM を有効化しました"
+# --- trigger_server.py をコピー ---
+$serverSrc = Join-Path $PSScriptRoot "trigger_server.py"
+$serverDst = "$schoolDir\trigger_server.py"
+if (Test-Path $serverSrc) {
+    Copy-Item -Path $serverSrc -Destination $serverDst -Force
+    Write-Host "[OK] trigger_server.py を $serverDst にコピーしました"
+} else {
+    Write-Warning "trigger_server.py が見つかりません: $serverSrc"
+}
+
+# --- .env をコピー（TRIGGER_TOKEN を生徒PCにも配布） ---
+$envSrc = Join-Path $PSScriptRoot ".env"
+$envDst = "$schoolDir\.env"
+if (Test-Path $envSrc) {
+    Copy-Item -Path $envSrc -Destination $envDst -Force
+    Write-Host "[OK] .env を $envDst にコピーしました"
+} else {
+    Write-Warning ".env が見つかりません。先生PCで .env を作成してから再実行してください: $envSrc"
+}
+
+# --- ポート 8080 のファイアウォール開放 ---
+Write-Host "ポート 8080 (trigger_server) をファイアウォールで開放しています..."
+netsh advfirewall firewall add rule `
+    name="SchoolTriggerServer" `
+    dir=in `
+    action=allow `
+    protocol=TCP `
+    localport=8080 | Out-Null
+Write-Host "[OK] ポート 8080 を開放しました"
 
 # --- Python / pip の確認 ---
 try {
@@ -67,6 +91,26 @@ try {
 Write-Host "selenium をインストールしています..."
 pip install selenium --quiet
 Write-Host "[OK] selenium のインストール完了"
+
+# --- trigger_server.py をログオン時自動起動タスクに登録 ---
+Write-Host "trigger_server.py をスタートアップタスクに登録しています..."
+$pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+if ($null -eq $pythonExe) {
+    Write-Warning "python.exe が見つかりません。タスク登録をスキップします。"
+} else {
+    $taskCmd = "`"$pythonExe`" `"$serverDst`""
+    schtasks /create `
+        /tn "SchoolTriggerServer" `
+        /tr $taskCmd `
+        /sc onlogon `
+        /ru $env:USERNAME `
+        /it /f | Out-Null
+    Write-Host "[OK] スタートアップタスク 'SchoolTriggerServer' を登録しました"
+
+    # 今すぐ起動
+    schtasks /run /tn "SchoolTriggerServer" | Out-Null
+    Write-Host "[OK] trigger_server.py を起動しました（ポート 8080）"
+}
 
 # --- コンピュータ名の変更 ---
 Write-Host "コンピュータ名を『$newComputerName』に変更しています..."

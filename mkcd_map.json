@@ -1,6 +1,6 @@
 [
-    {"display": "1-1", "file": "1-1world.mkcd"},
-    {"display": "1-2", "file": "1-1world.mkcd"},
+    {"display": "1-1", "file": "image1.png"},
+    {"display": "1-2", "file": "image2.png"},
     {"display": "1-3", "file": "1-1world.mkcd"},
     {"display": "1-4", "file": "1-1world.mkcd"}
 ]
