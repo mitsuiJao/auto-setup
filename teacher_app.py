@@ -9,6 +9,8 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import urllib.error
+import urllib.request
 from tkinter import ttk, messagebox
 
 SCHOOL_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Local", "school")
@@ -16,9 +18,27 @@ DATA_FILE = os.path.join(SCHOOL_DIR, "students.json")
 MKCD_MAP_FILE = os.path.join(os.path.dirname(__file__), "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
 FONT_BOLD = ("Yu Gothic", 11, "bold")
-AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
 WEEKDAY_NAMES = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
 DETECTION_TIMEOUT = 60  # PC検出のタイムアウト（秒）
+TRIGGER_PORT = 8080      # 生徒PCのトリガーサーバーポート
+
+
+def _load_env():
+    """スクリプトと同ディレクトリの .env を読み込む"""
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    env = {}
+    if os.path.exists(env_path):
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+_env = _load_env()
+TRIGGER_TOKEN = _env.get("TRIGGER_TOKEN", "")  # 生徒PCのトリガーサーバー認証トークン
 
 
 def load_data():
@@ -46,7 +66,7 @@ def load_mkcd_map():
     return displays, file_to_disp, disp_to_file
 
 
-def detect_pc_names(max_pc: int = 30):
+def detect_pc_names(max_pc: int = 10):
     """PC-01〜PC-{max_pc} に直接ホスト名でpingして応答があったPCを返す"""
     print(f"[検出開始] PC-01〜PC-{max_pc:02d} に接続確認中...")
 
@@ -100,25 +120,37 @@ $jobs | ForEach-Object {{
 
 
 def launch_pc(pc_name, student, site_url, mkcd_share):
-    """PowerShell Remoting で生徒PCの agent.py を実行する"""
+    """HTTP POST で生徒PCのトリガーサーバーに agent.py を起動させる"""
     mkcd_path = mkcd_share.rstrip("\\") + "\\" + student["next_mkcd"]
-    cmd = (
-        f'Invoke-Command -ComputerName {pc_name} -ScriptBlock {{'
-        f' python "{AGENT_PATH}"'
-        f' --login_id "{student["login_id"]}"'
-        f' --login_pw "{student["login_pw"]}"'
-        f' --mkcd_path "{mkcd_path}"'
-        f' --site_url "{site_url}"'
-        f' }}'
+    payload = json.dumps({
+        "token":    TRIGGER_TOKEN,
+        "login_id": student["login_id"],
+        "login_pw": student["login_pw"],
+        "mkcd_path": mkcd_path,
+        "site_url":  site_url,
+    }).encode("utf-8")
+
+    url = f"http://{pc_name}:{TRIGGER_PORT}/start"
+    req = urllib.request.Request(
+        url, data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
-    result = subprocess.run(
-        ["powershell", "-Command", cmd],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(f"[launch_pc] {pc_name} エラー: {result.stderr}")
-        return False
-    return True
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read())
+            if body.get("status") == "ok":
+                print(f"[launch_pc] {pc_name} 起動成功")
+                return True
+            print(f"[launch_pc] {pc_name} サーバー応答エラー: {body}")
+            return False
+    except urllib.error.HTTPError as e:
+        print(f"[launch_pc] {pc_name} HTTPエラー {e.code}: {e.read().decode()}")
+    except urllib.error.URLError as e:
+        print(f"[launch_pc] {pc_name} 接続失敗: {e.reason}")
+    except Exception as e:
+        print(f"[launch_pc] {pc_name} エラー: {e}")
+    return False
 
 
 class TeacherApp(tk.Tk):

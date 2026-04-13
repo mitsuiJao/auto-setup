@@ -24,12 +24,6 @@ if ($null -eq $existingShare) {
     Write-Host "[SKIP] 共有 '$shareName' は既に存在します"
 }
 
-# --- WinRM を有効化（生徒PCへのリモート実行に必要） ---
-Write-Host "WinRM を有効化しています..."
-Enable-PSRemoting -Force | Out-Null
-Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
-Write-Host "[OK] WinRM を有効化しました"
-
 # --- Python / pip の確認 ---
 try {
     $pyVer = python --version 2>&1
@@ -51,11 +45,24 @@ if (Test-Path $jsonSrc) {
     Write-Host "[OK] students.json を $schoolDir にコピーしました"
 }
 
+# --- .env の確認 ---
+$envPath = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envPath) {
+    Write-Host "[OK] .env を確認しました"
+} else {
+    Write-Warning ".env が見つかりません。"
+    Write-Warning ".env.example をコピーして .env を作成し、TRIGGER_TOKEN を設定してください。"
+    Write-Warning "  例: TRIGGER_TOKEN=your_secret_token_here"
+}
+
 Write-Host ""
 Write-Host "次のステップ:"
-Write-Host "  1. $lessonsDir に各生徒の .mkcd ファイルを配置してください"
-Write-Host "  2. $schoolDir\students.json の内容（ログイン情報・ワールド名）を編集してください"
-Write-Host "  3. teacher_app.py を実行してください: python teacher_app.py"
+Write-Host "  1. .env ファイルを作成して TRIGGER_TOKEN に任意のトークンを設定してください"
+Write-Host "     例: TRIGGER_TOKEN=your_secret_token_here"
+Write-Host "  2. $lessonsDir に各生徒の .mkcd ファイルを配置してください"
+Write-Host "  3. $schoolDir\students.json の内容（ログイン情報・ワールド名）を編集してください"
+Write-Host "  4. 生徒PCで setup_student.ps1 を実行してください（.env も一緒に配布されます）"
+Write-Host "  5. teacher_app.py を実行してください: python teacher_app.py"
 Write-Host ""
 Write-Host "=== 先生PC初期設定が完了しました ===" -ForegroundColor Green
 Write-Host "先生PCのコンピュータ名: $env:COMPUTERNAME"
