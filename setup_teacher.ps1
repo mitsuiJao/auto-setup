@@ -5,8 +5,8 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "=== 先生PC初期設定 ===" -ForegroundColor Cyan
 
-# --- lessons 共有フォルダ作成 ---
-$lessonsDir = "C:\lessons"
+# --- lessons フォルダ作成（ユーザーディレクトリ以下） ---
+$lessonsDir = "$env:USERPROFILE\AppData\Local\school\lessons"
 if (-not (Test-Path $lessonsDir)) {
     New-Item -ItemType Directory -Path $lessonsDir | Out-Null
     Write-Host "[OK] $lessonsDir を作成しました"
@@ -40,9 +40,9 @@ try {
 
 # --- tkinter は Python 標準同梱なので pip 不要 ---
 
-# --- students.json をプロジェクトフォルダにコピー（任意） ---
+# --- students.json をユーザーディレクトリにコピー（任意） ---
 $jsonSrc = Join-Path $PSScriptRoot "students.json"
-$schoolDir = "C:\school"
+$schoolDir = "$env:USERPROFILE\AppData\Local\school"
 if (-not (Test-Path $schoolDir)) {
     New-Item -ItemType Directory -Path $schoolDir | Out-Null
 }
@@ -53,8 +53,8 @@ if (Test-Path $jsonSrc) {
 
 Write-Host ""
 Write-Host "次のステップ:"
-Write-Host "  1. C:\lessons\ に各生徒の .mkcd ファイルを配置してください"
-Write-Host "  2. students.json の内容（ログイン情報・ワールド名）を編集してください"
+Write-Host "  1. $lessonsDir に各生徒の .mkcd ファイルを配置してください"
+Write-Host "  2. $schoolDir\students.json の内容（ログイン情報・ワールド名）を編集してください"
 Write-Host "  3. teacher_app.py を実行してください: python teacher_app.py"
 Write-Host ""
 Write-Host "=== 先生PC初期設定が完了しました ===" -ForegroundColor Green

@@ -11,12 +11,13 @@ import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "students.json")
+SCHOOL_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Local", "school")
+DATA_FILE = os.path.join(SCHOOL_DIR, "students.json")
 MKCD_MAP_FILE = os.path.join(os.path.dirname(__file__), "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
 FONT_BOLD = ("Yu Gothic", 11, "bold")
 PC_NAMES = [f"PC-{i:02d}" for i in range(1, 6)]
-AGENT_PATH = r"C:\school\agent.py"
+AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
 WEEKDAY_NAMES = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
 
 

@@ -5,8 +5,8 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "=== 生徒PC初期設定 ===" -ForegroundColor Cyan
 
-# --- C:\school フォルダ作成 ---
-$schoolDir = "C:\school"
+# --- ユーザーディレクトリ以下に school フォルダ作成 ---
+$schoolDir = "$env:USERPROFILE\AppData\Local\school"
 if (-not (Test-Path $schoolDir)) {
     New-Item -ItemType Directory -Path $schoolDir | Out-Null
     Write-Host "[OK] $schoolDir を作成しました"

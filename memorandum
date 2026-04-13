@@ -10,3 +10,127 @@ New-SmbShare -Name "lessons" -Path "C:\Users\nishi\lessons" -FullAccess "Everyon
 
 共有名（lessons）を変えない限り、ここのパスは変わりません。
 共有名も変えたい場合は合わせて修正：
+
+
+
+
+
+🚀 セットアップ手順
+ステップ1️⃣：先生PC のセットアップ
+# 1. PowerShellを「管理者権限」で起動
+# 2. スクリプト実行ポリシーを一時的に変更
+Set-ExecutionPolicy RemoteSigned -Scope Process
+
+# 3. セットアップスクリプト実行
+.\setup_teacher.ps1
+
+実行内容：
+
+✅ C:\lessons\ フォルダ作成
+✅ ネットワーク共有設定（\\TEACHER-PC\lessons\）
+✅ WinRM（PowerShell Remoting）有効化 → 生徒PCをリモート操作するために必須
+✅ students.json を C:\school\ にコピー
+完了後、先生PCのコンピュータ名を確認：
+
+スクリプト実行後に表示される 先生PCのコンピュータ名 をメモしておく
+ステップ2️⃣：students.json を編集
+先生PC の C:\school\students.json を編集：
+
+{
+  "site_url": "https://your-site.com/login",
+  "mkcd_share": "\\\\TEACHER-PC\\lessons\\",
+  "last_assignment": {},
+  "students": [
+    {
+      "id": "s001",
+      "name": "田中太郎",
+      "login_id": "tanaka@example.com",
+      "login_pw": "pass123",
+      "next_mkcd": "tanaka_lesson1.mkcd"
+    },
+    {
+      "id": "s002",
+      "name": "鈴木花子",
+      "login_id": "suzuki@example.com",
+      "login_pw": "pass456",
+      "next_mkcd": "suzuki_lesson1.mkcd"
+    }
+  ]
+}
+
+重要なフィールド：
+
+site_url: ログインページのURL
+mkcd_share: \\\\<先生PCのコンピュータ名>\\lessons\\ に設定
+students: 各生徒の情報
+ステップ3️⃣：.mkcd ファイルを配置
+先生PC の C:\lessons\ に、各生徒用のMinecraft Education Editionワールドファイル（.mkcd）を配置：
+
+C:\lessons\
+  ├── tanaka_lesson1.mkcd
+  ├── tanaka_lesson2.mkcd
+  ├── suzuki_lesson1.mkcd
+  └── ...
+
+ステップ4️⃣：生徒PC各台のセットアップ
+各生徒PCで以下を実行（同じセットアップフォルダを共有or配布）：
+
+# 1. PowerShellを「管理者権限」で起動
+# 2. スクリプト実行ポリシーを一時的に変更
+Set-ExecutionPolicy RemoteSigned -Scope Process
+
+# 3. セットアップスクリプト実行
+.\setup_student.ps1
+
+実行内容：
+
+✅ C:\school\ フォルダ作成
+✅ agent.py を C:\school\agent.py にコピー
+✅ WinRM有効化（先生PCからのリモート実行を許可）
+✅ Seleniumライブラリをインストール
+ステップ5️⃣：agent.py をカスタマイズ
+各ログインサイトのHTML構造に合わせて agent.py 内の以下の部分を編集：
+
+# ============ TODO: サイトに合わせて変更 ============
+# ログインIDフィールドのセレクタ
+id_field = wait.until(EC.presence_of_element_located(
+    (By.CSS_SELECTOR, "input[name='username']")
+))
+
+# パスワードフィールドのセレクタ
+pw_field = driver.find_element(By.CSS_SELECTOR, "input[name='password']")
+
+# ログインボタンのセレクタ
+submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+# ================================================
+
+セレクタの確認方法：
+
+ChromeでログインページにアクセスΩF12で開発者ツール開く
+該当フォームを右クリック → 「検証」
+HTMLの属性（name, id, classなど）を確認して、セレクタを修正
+🎮 使い方（先生側）
+python teacher_app.py
+
+タブ1「授業開始」
+PCドロップダウンで各台に生徒を割り当て
+割り当てると「次回ワールド名」が自動表示
+「全PC起動」ボタンをクリック → 全台が並列起動
+起動後、割り当て情報が自動保存
+タブ2「次回ワールド設定」
+生徒ごとに次回のワールド（.mkcdファイル名）を設定
+「保存」をクリック → タブ1の表示も即時反映
+✅ 前提条件
+✅ 全台Windows PC、同一LAN内
+✅ 先生PC・生徒PC ともに WinRM有効（セットアップで自動設定）
+✅ 生徒PC に Python インストール済み
+✅ 生徒PC に Chrome ブラウザインストール済み（Seleniumで使用）
+✅ Minecraft Education Edition がインストール済み
+🔧 トラブル対応
+問題	解決方法
+WinRM接続失敗	Enable-PSRemoting -Force を再実行
+Seleniumエラー	pip install selenium --upgrade
+.mkcdが開かない	Chrome・MinecraftのインストールPC名・パス確認
+ログインできない	agent.pyのセレクタが正しいか確認
+何か不明な点がありましたら、お知らせください！
+

@@ -54,7 +54,7 @@ README.md
 
 ## launch_pc()の仕様
 - PowerShell Remotingを使い先生PCから生徒PCのagent.pyを実行
-- agent.pyのパスは C:\school\agent.py 固定
+- agent.pyのパスは %USERPROFILE%\AppData\Local\school\agent.py
 
 ## その他
 - UIはtkinter（ttk使用）

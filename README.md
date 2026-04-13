@@ -19,7 +19,7 @@
    Set-ExecutionPolicy RemoteSigned -Scope Process
    .\setup_teacher.ps1
    ```
-2. `C:\lessons\` に各生徒の `.mkcd` ファイルを配置
+2. `%USERPROFILE%\AppData\Local\school\lessons\` に各生徒の `.mkcd` ファイルを配置
 3. `students.json` を編集してログイン情報・サイトURLを設定
 4. `mkcd_share` を `\\<先生PCのコンピュータ名>\lessons\` に設定
 
@@ -31,7 +31,7 @@
    Set-ExecutionPolicy RemoteSigned -Scope Process
    .\setup_student.ps1
    ```
-   - `C:\school\agent.py` が配置されます
+   - `%USERPROFILE%\AppData\Local\school\agent.py` が配置されます
    - WinRM（PowerShell Remoting）が有効化されます
 
 ### 3. agent.py のセレクタ設定
@@ -85,6 +85,18 @@ python teacher_app.py
   ]
 }
 ```
+
+**注意：** `mkcd_share` は、先生PCのコンピュータ名に合わせて設定してください。
+- 実際のパスは `%USERPROFILE%\AppData\Local\school\lessons\` に変更されています
+
+## ディレクトリ構成
+
+| 場所 | 説明 |
+|------|------|
+| `%USERPROFILE%\AppData\Local\school\` | 全体の作業ディレクトリ |
+| `%USERPROFILE%\AppData\Local\school\lessons\` | .mkcdファイル置き場（共有） |
+| `%USERPROFILE%\AppData\Local\school\students.json` | 設定ファイル |
+| `%USERPROFILE%\AppData\Local\school\agent.py` | 生徒PC用スクリプト |
 
 ## 前提条件
 
