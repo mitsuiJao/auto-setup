@@ -47,41 +47,35 @@ def load_mkcd_map():
 
 
 def detect_pc_names():
-    """ネットワーク上の PC を検出し、接続可能なPC名リストを返す"""
+    """ARP テーブルから PC-XX 形式のコンピュータを検出"""
     print("[検出開始] ネットワーク上のPC検出中...")
 
-    # PowerShell で PC を検出（WMI を使用）
     ps_script = """
 $ErrorActionPreference = "SilentlyContinue"
 $pcs = @()
 
-# ローカルサブネットのPC検出（Arp テーブルから）
-arp -a | Select-String "\\s+([A-Z0-9-]+)" | ForEach-Object {
-    $pc = ($_.Line -split '\\s+')[0]
-    if ($pc -match '^PC-\\d{2}$') {
-        # PC-01 などの形式の名前をテスト
-        $result = Test-Connection -ComputerName $pc -Count 1 -Quiet -TimeoutSeconds 2
-        if ($result) {
-            $pcs += $pc
+# ARP テーブルから PC-XX 形式のホスト名を抽出
+arp -a | ForEach-Object {
+    if ($_ -match '\\s+([A-Z0-9-]+)\\s+') {
+        $hostname = $matches[1]
+        # PC-01 などの形式のホスト名のみ処理
+        if ($hostname -match '^PC-\\d{2}$') {
+            # ping でテスト
+            $pingResult = Test-Connection -ComputerName $hostname -Count 1 -Quiet -TimeoutSeconds 1
+            if ($pingResult) {
+                $pcs += $hostname
+                Write-Host "[OK] $hostname" -ForegroundColor Green
+            }
         }
     }
 }
 
-# WMI経由でも試す
-try {
-    Get-ADComputer -Filter "Name -like 'PC-*'" -ErrorAction SilentlyContinue | ForEach-Object {
-        $pc = $_.Name
-        if ($pcs -notcontains $pc) {
-            $result = Test-Connection -ComputerName $pc -Count 1 -Quiet -TimeoutSeconds 2
-            if ($result) {
-                $pcs += $pc
-            }
-        }
-    }
-} catch { }
-
 # 結果を出力
-$pcs | Sort-Object | Get-Unique
+if ($pcs.Count -gt 0) {
+    $pcs | Sort-Object | Select-Object -Unique
+} else {
+    Write-Host "[結果] PC が見つかりません" -ForegroundColor Yellow
+}
 """
 
     try:
@@ -90,21 +84,26 @@ $pcs | Sort-Object | Get-Unique
             capture_output=True, text=True, timeout=DETECTION_TIMEOUT
         )
 
-        if result.returncode == 0:
-            pc_list = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-            if pc_list:
-                print(f"[検出完了] {len(pc_list)} 台のPC を検出しました: {', '.join(pc_list)}")
-                return sorted(pc_list)
-            else:
-                print("[検出] PC が見つかりません。ネットワーク検索中...")
+        print(result.stdout)  # デバッグ出力
+
+        lines = result.stdout.strip().split('\n')
+        pc_list = [line.strip() for line in lines if line.strip().startswith('PC-')]
+
+        if pc_list:
+            pc_list = sorted(list(set(pc_list)))  # 重複削除とソート
+            print(f"[検出完了] {len(pc_list)} 台のPC を検出しました: {', '.join(pc_list)}")
+            return pc_list
+        else:
+            print("[検出] ARP テーブルに PC-XX 形式のホスト が見つかりません")
+
     except subprocess.TimeoutExpired:
         print("[タイムアウト] PC検出がタイムアウトしました")
     except Exception as e:
         print(f"[検出エラー] {e}")
 
-    # フォールバック: デフォルトのPC リスト（検出失敗時）
+    # フォールバック: デフォルトのPC リスト
     fallback_pcs = [f"PC-{i:02d}" for i in range(1, 10)]
-    print(f"[デフォルト] PC リスト を使用します: {', '.join(fallback_pcs)}")
+    print(f"[デフォルト] PC-01～PC-09 を使用します")
     return fallback_pcs
 
 
