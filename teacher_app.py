@@ -16,9 +16,9 @@ DATA_FILE = os.path.join(SCHOOL_DIR, "students.json")
 MKCD_MAP_FILE = os.path.join(os.path.dirname(__file__), "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
 FONT_BOLD = ("Yu Gothic", 11, "bold")
-PC_NAMES = [f"PC-{i:02d}" for i in range(1, 6)]
 AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
 WEEKDAY_NAMES = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
+DETECTION_TIMEOUT = 30  # PC検出のタイムアウト（秒）
 
 
 def load_data():
@@ -44,6 +44,68 @@ def load_mkcd_map():
     file_to_disp = {e["file"]: e["display"] for e in entries}
     disp_to_file = {e["display"]: e["file"] for e in entries}
     return displays, file_to_disp, disp_to_file
+
+
+def detect_pc_names():
+    """ネットワーク上の PC を検出し、接続可能なPC名リストを返す"""
+    print("[検出開始] ネットワーク上のPC検出中...")
+
+    # PowerShell で PC を検出（WMI を使用）
+    ps_script = """
+$ErrorActionPreference = "SilentlyContinue"
+$pcs = @()
+
+# ローカルサブネットのPC検出（Arp テーブルから）
+arp -a | Select-String "\\s+([A-Z0-9-]+)" | ForEach-Object {
+    $pc = ($_.Line -split '\\s+')[0]
+    if ($pc -match '^PC-\\d{2}$') {
+        # PC-01 などの形式の名前をテスト
+        $result = Test-Connection -ComputerName $pc -Count 1 -Quiet -TimeoutSeconds 2
+        if ($result) {
+            $pcs += $pc
+        }
+    }
+}
+
+# WMI経由でも試す
+try {
+    Get-ADComputer -Filter "Name -like 'PC-*'" -ErrorAction SilentlyContinue | ForEach-Object {
+        $pc = $_.Name
+        if ($pcs -notcontains $pc) {
+            $result = Test-Connection -ComputerName $pc -Count 1 -Quiet -TimeoutSeconds 2
+            if ($result) {
+                $pcs += $pc
+            }
+        }
+    }
+} catch { }
+
+# 結果を出力
+$pcs | Sort-Object | Get-Unique
+"""
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", ps_script],
+            capture_output=True, text=True, timeout=DETECTION_TIMEOUT
+        )
+
+        if result.returncode == 0:
+            pc_list = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+            if pc_list:
+                print(f"[検出完了] {len(pc_list)} 台のPC を検出しました: {', '.join(pc_list)}")
+                return sorted(pc_list)
+            else:
+                print("[検出] PC が見つかりません。ネットワーク検索中...")
+    except subprocess.TimeoutExpired:
+        print("[タイムアウト] PC検出がタイムアウトしました")
+    except Exception as e:
+        print(f"[検出エラー] {e}")
+
+    # フォールバック: デフォルトのPC リスト（検出失敗時）
+    fallback_pcs = [f"PC-{i:02d}" for i in range(1, 10)]
+    print(f"[デフォルト] PC リスト を使用します: {', '.join(fallback_pcs)}")
+    return fallback_pcs
 
 
 def launch_pc(pc_name, student, site_url, mkcd_share):
@@ -77,6 +139,7 @@ class TeacherApp(tk.Tk):
 
         self.data = load_data()
         self.mkcd_displays, self.file_to_disp, self.disp_to_file = load_mkcd_map()
+        self.pc_names = detect_pc_names()  # ネットワークからPC検出
         self._separators: set[str] = set()
         self._build_ui()
         self._restore_last_assignment()
@@ -133,7 +196,7 @@ class TeacherApp(tk.Tk):
 
         student_items, self._separators = self._build_grouped_student_list()
 
-        for i, pc in enumerate(PC_NAMES):
+        for i, pc in enumerate(self.pc_names):
             row = i + 2
             ttk.Label(frame, text=pc, font=FONT).grid(
                 row=row, column=0, padx=8, pady=3, sticky="w")
@@ -145,7 +208,7 @@ class TeacherApp(tk.Tk):
             cb.grid(row=row, column=1, padx=8, pady=3, sticky="w")
             cb.bind("<<ComboboxSelected>>", self._make_sep_guard(var))
 
-        btn_row = len(PC_NAMES) + 2
+        btn_row = len(self.pc_names) + 2
         self.launch_btn = ttk.Button(
             frame, text="全PC起動", command=self._launch_all)
         self.launch_btn.grid(row=btn_row, column=0, columnspan=2,

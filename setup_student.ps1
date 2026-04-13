@@ -4,6 +4,31 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "=== 生徒PC初期設定 ===" -ForegroundColor Cyan
+Write-Host ""
+
+# --- PC番号の入力と確認 ---
+$maxRetries = 3
+$pcNumber = $null
+for ($i = 0; $i -lt $maxRetries; $i++) {
+    $input = Read-Host "このPCの番号を入力してください（01〜09、例: 01, 02, 03...）"
+
+    # 入力チェック: 01〜09 の形式
+    if ($input -match "^0[1-9]$") {
+        $pcNumber = $input
+        break
+    } else {
+        Write-Host "❌ 入力エラー: 01〜09 の形式で入力してください" -ForegroundColor Red
+    }
+}
+
+if ($null -eq $pcNumber) {
+    Write-Host "❌ 有効なPC番号が入力されませんでした。セットアップを中止します。" -ForegroundColor Red
+    exit 1
+}
+
+$newComputerName = "PC-$pcNumber"
+Write-Host "[OK] このPCを『$newComputerName』に設定します" -ForegroundColor Green
+Write-Host ""
 
 # --- ユーザーディレクトリ以下に school フォルダ作成 ---
 $schoolDir = "$env:USERPROFILE\AppData\Local\school"
@@ -43,6 +68,27 @@ Write-Host "selenium をインストールしています..."
 pip install selenium --quiet
 Write-Host "[OK] selenium のインストール完了"
 
+# --- コンピュータ名の変更 ---
+Write-Host "コンピュータ名を『$newComputerName』に変更しています..."
+try {
+    Rename-Computer -NewName $newComputerName -Force -ErrorAction Stop
+    Write-Host "[OK] コンピュータ名を『$newComputerName』に変更しました" -ForegroundColor Green
+    $rebootRequired = $true
+} catch {
+    Write-Host "[エラー] コンピュータ名の変更に失敗しました: $_" -ForegroundColor Red
+    $rebootRequired = $false
+}
+
 Write-Host ""
 Write-Host "=== 生徒PC初期設定が完了しました ===" -ForegroundColor Green
-Write-Host "このPCのコンピュータ名: $env:COMPUTERNAME"
+Write-Host "新しいコンピュータ名: $newComputerName"
+Write-Host ""
+
+if ($rebootRequired) {
+    Write-Host "⚠️  コンピュータ名の変更を有効にするため、再起動が必要です。" -ForegroundColor Yellow
+    $reboot = Read-Host "今すぐ再起動しますか？（Y/n）"
+    if ($reboot -ne "n") {
+        Write-Host "30秒後に再起動します..."
+        shutdown /r /t 30 /c "コンピュータ名変更のため再起動"
+    }
+}

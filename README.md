@@ -31,8 +31,11 @@
    Set-ExecutionPolicy RemoteSigned -Scope Process
    .\setup_student.ps1
    ```
-   - `%USERPROFILE%\AppData\Local\school\agent.py` が配置されます
-   - WinRM（PowerShell Remoting）が有効化されます
+3. **PC番号を入力**（画面に従って `01`〜`09` を入力）
+   - 例：1番目のPCなら `01`、2番目なら `02`
+4. セットアップ完了後、**再起動**
+   - コンピュータ名が `PC-01`、`PC-02` などに自動変更されます
+   - WinRM（PowerShell Remoting）も有効化されます
 
 ### 3. agent.py のセレクタ設定
 
@@ -57,6 +60,9 @@ python teacher_app.py
 
 ### タブ1「授業開始」
 
+- 🔍 **起動時に自動でネットワークからPC検出**
+  - PC-01, PC-02, ... の形式の接続可能なPC を自動検出
+  - 検出失敗時は PC-01～PC-09 をデフォルト表示
 - 各PC行のドロップダウンで生徒を割り当て
 - 「次回ワールド名」が自動表示される
 - 「全PC起動」ボタンで全台を並列起動
