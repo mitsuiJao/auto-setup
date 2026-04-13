@@ -1,0 +1,21 @@
+{
+  "site_url": "https://example.com",
+  "mkcd_share": "\\\\TEACHER-PC\\lessons\\",
+  "last_assignment": {},
+  "students": [
+    {
+      "id": "s001",
+      "name": "田中太郎",
+      "login_id": "tanaka@example.com",
+      "login_pw": "pass123",
+      "next_mkcd": "tanaka_lesson1.mkcd"
+    },
+    {
+      "id": "s002",
+      "name": "鈴木花子",
+      "login_id": "suzuki@example.com",
+      "login_pw": "pass456",
+      "next_mkcd": "suzuki_lesson1.mkcd"
+    }
+  ]
+}
