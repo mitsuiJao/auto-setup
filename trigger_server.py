@@ -11,9 +11,9 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = 8080
-SCHOOL_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Local", "school")
-AGENT_PATH = os.path.join(SCHOOL_DIR, "agent.py")
-LOG_FILE = os.path.join(SCHOOL_DIR, "trigger_server.log")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+AGENT_PATH = os.path.join(_HERE, "agent.py")
+LOG_FILE = os.path.join(_HERE, "trigger_server.log")
 
 # pythonw.exe はコンソールがないのでファイルにログを書く
 logging.basicConfig(
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 def _load_token():
     """自身と同ディレクトリの .env から TRIGGER_TOKEN を読む"""
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    env_path = os.path.join(_HERE, ".env")
     if os.path.exists(env_path):
         with open(env_path, encoding="utf-8") as f:
             for line in f:
@@ -70,13 +70,11 @@ class Handler(BaseHTTPRequestHandler):
         mkcd_path = payload.get("mkcd_path", "")
         site_url  = payload.get("site_url",  "")
 
-        cmd = [
-            sys.executable, AGENT_PATH,
-            "--login_id",  login_id,
-            "--login_pw",  login_pw,
-            "--mkcd_path", mkcd_path,
-            "--site_url",  site_url,
-        ]
+        cmd = [sys.executable, AGENT_PATH,
+               "--login_id",  login_id,
+               "--login_pw",  login_pw,
+               "--mkcd_path", mkcd_path,
+               "--site_url",  site_url]
 
         try:
             # CREATE_NEW_CONSOLE でユーザーセッションの新しいウィンドウとして起動

@@ -65,18 +65,17 @@ TRIGGER_TOKEN=your_secret_token_here
 PowerShell を**管理者権限**で開き、以下を実行します。
 
 ```powershell
-Set-ExecutionPolicy RemoteSigned -Scope Process
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 .\setup_teacher.ps1
 ```
 
 セットアップ内容:
-- `%USERPROFILE%\AppData\Local\school\lessons\` フォルダを作成
+- プロジェクトフォルダ内に `lessons\` フォルダを作成
 - `lessons` フォルダをネットワーク共有（Everyone 読み取り）
-- `students.json` を school フォルダにコピー
 
 完了後、以下を行います。
 
-1. `%USERPROFILE%\AppData\Local\school\lessons\` に各生徒の `.mkcd` ファイルを配置
+1. `lessons\` に各生徒の `.mkcd` ファイルを配置
 2. `students.json` を編集（後述）
 3. `mkcd_map.json` を編集（後述）
 
@@ -89,14 +88,13 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 PowerShell を**管理者権限**で開き、以下を実行します。
 
 ```powershell
-Set-ExecutionPolicy RemoteSigned -Scope Process
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 .\setup_student.ps1
 ```
 
 画面の指示に従い **PC番号（01〜09）** を入力します。
 
 セットアップ内容:
-- `school` フォルダを作成し `agent.py`、`trigger_server.py`、`.env` をコピー
 - ポート 8080 のファイアウォールルールを追加（全プロファイル対象）
 - `selenium` をインストール
 - `trigger_server.py` をログオン時自動起動として登録（スタートアップフォルダ）
@@ -110,7 +108,7 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 
 ### Step 4: `students.json` を編集する
 
-`%USERPROFILE%\AppData\Local\school\students.json` を編集します。
+プロジェクトフォルダ内の `students.json` を編集します。
 
 ```json
 {
@@ -137,7 +135,7 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 | `mkcd_share` | 先生PCの共有フォルダパス（`\\コンピュータ名\lessons\`） |
 | `weekday` | 曜日（0=月〜6=日）。GUIでのグループ表示に使用 |
 | `class` | クラス番号。GUIでのグループ表示に使用 |
-| `next_mkcd` | 次回起動するワールドのファイル名 |
+| `next_mkcd` | 次回起動するワールドのデフォルトファイル名 |
 
 ---
 
@@ -180,9 +178,10 @@ python teacher_app.py
 ### タブ1「授業開始」
 
 1. 起動時にネットワーク上の `PC-01`〜`PC-09` を自動検出
-2. 各PC行のドロップダウンで生徒を割り当て
+2. 各PC行のドロップダウンで生徒とステージを割り当て
 3. 「全PC起動」ボタンで全台を並列起動
-4. 前回の割り当ては次回起動時に自動復元
+4. 「更新」ボタンでPCを再スキャン
+5. 前回の割り当ては次回起動時に自動復元
 
 ### タブ2「次回ワールド設定」
 
@@ -193,15 +192,17 @@ python teacher_app.py
 
 ## ディレクトリ構成
 
+すべてプロジェクトフォルダ内で完結します。アンインストールはフォルダごと削除するだけです。
+
 | 場所 | 説明 |
 |---|---|
-| `%USERPROFILE%\AppData\Local\school\` | 作業ディレクトリ（先生・生徒共通） |
-| `%USERPROFILE%\AppData\Local\school\lessons\` | `.mkcd` ファイル置き場（先生PCのみ・共有） |
-| `%USERPROFILE%\AppData\Local\school\students.json` | 設定ファイル（先生PCのみ） |
-| `%USERPROFILE%\AppData\Local\school\agent.py` | ブラウザ操作スクリプト（生徒PCのみ） |
-| `%USERPROFILE%\AppData\Local\school\trigger_server.py` | 常駐サーバー（生徒PCのみ） |
-| `%USERPROFILE%\AppData\Local\school\.env` | トークン（生徒PC用） |
-| `%USERPROFILE%\AppData\Local\school\trigger_server.log` | サーバーログ（生徒PC） |
+| `プロジェクトフォルダ\` | 作業ディレクトリ（先生・生徒共通） |
+| `プロジェクトフォルダ\lessons\` | `.mkcd` ファイル置き場（先生PCのみ・共有） |
+| `プロジェクトフォルダ\students.json` | 設定ファイル（先生PCのみ） |
+| `プロジェクトフォルダ\agent.py` | ブラウザ操作スクリプト（生徒PCのみ） |
+| `プロジェクトフォルダ\trigger_server.py` | 常駐サーバー（生徒PCのみ） |
+| `プロジェクトフォルダ\.env` | トークン（先生・生徒共通） |
+| `プロジェクトフォルダ\trigger_server.log` | サーバーログ（生徒PC） |
 
 ---
 
@@ -218,12 +219,11 @@ python teacher_app.py
 netstat -an | findstr ":8080"
 ```
 
-表示されない場合は手動で起動します。
+表示されない場合は手動で起動します（プロジェクトフォルダで実行）。
 
 ```powershell
 $pythonwExe = Join-Path (Split-Path (Get-Command python).Source) "pythonw.exe"
-$serverDst  = "$env:USERPROFILE\AppData\Local\school\trigger_server.py"
-Start-Process -FilePath $pythonwExe -ArgumentList "`"$serverDst`"" -WindowStyle Hidden
+Start-Process -FilePath $pythonwExe -ArgumentList "`".\trigger_server.py`"" -WindowStyle Hidden
 Start-Sleep 2
 netstat -an | findstr ":8080"
 ```
@@ -237,11 +237,8 @@ netstat -an | findstr ":8080"
 **確認方法:**
 
 ```powershell
-# 先生PC（プロジェクトフォルダで）
+# 先生PC・生徒PC ともにプロジェクトフォルダで
 cat .\.env
-
-# 生徒PC
-cat "$env:USERPROFILE\AppData\Local\school\.env"
 ```
 
 両方の値が同じになるよう揃えます。同一LAN内で認証不要にする場合は両方 `TRIGGER_TOKEN=` （空欄）にしてください。
@@ -249,11 +246,9 @@ cat "$env:USERPROFILE\AppData\Local\school\.env"
 生徒PCの `.env` を更新したら `trigger_server.py` を再起動します。
 
 ```powershell
-# 生徒PC: trigger_server を再起動
 Get-Process pythonw -ErrorAction SilentlyContinue | Stop-Process -Force
 $pythonwExe = Join-Path (Split-Path (Get-Command python).Source) "pythonw.exe"
-$serverDst  = "$env:USERPROFILE\AppData\Local\school\trigger_server.py"
-Start-Process -FilePath $pythonwExe -ArgumentList "`"$serverDst`"" -WindowStyle Hidden
+Start-Process -FilePath $pythonwExe -ArgumentList "`".\trigger_server.py`"" -WindowStyle Hidden
 ```
 
 ---
@@ -264,14 +259,15 @@ Start-Process -FilePath $pythonwExe -ArgumentList "`"$serverDst`"" -WindowStyle 
 - 先生PCと生徒PCが同一LANに接続されていること
 - コンピュータ名が `PC-01`〜`PC-09` 形式になっていること（`setup_student.ps1` で設定）
 - 再起動してコンピュータ名の変更が反映されていること
+- タブ1の「更新」ボタンで再スキャンを試す
 
 ---
 
 ### trigger_server のログを確認する
 
 ```powershell
-# 生徒PC
-cat "$env:USERPROFILE\AppData\Local\school\trigger_server.log"
+# 生徒PC（プロジェクトフォルダで）
+cat .\trigger_server.log
 ```
 
 ---

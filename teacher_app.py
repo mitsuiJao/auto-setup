@@ -13,19 +13,20 @@ import urllib.error
 import urllib.request
 from tkinter import ttk, messagebox
 
-SCHOOL_DIR = os.path.join(os.path.expanduser("~"), "AppData", "Local", "school")
-DATA_FILE = os.path.join(SCHOOL_DIR, "students.json")
-MKCD_MAP_FILE = os.path.join(os.path.dirname(__file__), "mkcd_map.json")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(_HERE, "students.json")
+MKCD_MAP_FILE = os.path.join(_HERE, "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
 FONT_BOLD = ("Yu Gothic", 11, "bold")
 WEEKDAY_NAMES = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
 DETECTION_TIMEOUT = 60  # PC検出のタイムアウト（秒）
 TRIGGER_PORT = 8080      # 生徒PCのトリガーサーバーポート
+STAGE_UNSET = "（未選択）"
 
 
 def _load_env():
     """スクリプトと同ディレクトリの .env を読み込む"""
-    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    env_path = os.path.join(_HERE, ".env")
     env = {}
     if os.path.exists(env_path):
         with open(env_path, encoding="utf-8") as f:
@@ -119,9 +120,9 @@ $jobs | ForEach-Object {{
     return fallback_pcs
 
 
-def launch_pc(pc_name, student, site_url, mkcd_share):
+def launch_pc(pc_name, student, mkcd_file, site_url, mkcd_share):
     """HTTP POST で生徒PCのトリガーサーバーに agent.py を起動させる"""
-    mkcd_path = mkcd_share.rstrip("\\") + "\\" + student["next_mkcd"]
+    mkcd_path = mkcd_share.rstrip("\\") + "\\" + mkcd_file
     payload = json.dumps({
         "token":    TRIGGER_TOKEN,
         "login_id": student["login_id"],
@@ -164,6 +165,9 @@ class TeacherApp(tk.Tk):
         self.mkcd_displays, self.file_to_disp, self.disp_to_file = load_mkcd_map()
         self.pc_names = detect_pc_names()  # ネットワークからPC検出
         self._separators: set[str] = set()
+        self.pc_student_vars: dict[str, tk.StringVar] = {}
+        self.pc_stage_vars: dict[str, tk.StringVar] = {}
+        self.pc_stage_cbs: dict[str, ttk.Combobox] = {}
         self._build_ui()
         self._restore_last_assignment()
 
@@ -210,43 +214,81 @@ class TeacherApp(tk.Tk):
         ttk.Label(frame, text="PC割り当て", font=FONT_BOLD).grid(
             row=0, column=0, columnspan=4, pady=(8, 4), sticky="w", padx=10)
 
-        headers = ["PC名", "生徒"]
+        headers = ["PC名", "生徒", "ステージ"]
         for col, h in enumerate(headers):
             ttk.Label(frame, text=h, font=FONT_BOLD).grid(
                 row=1, column=col, padx=8, pady=2, sticky="w")
 
-        self.pc_student_vars = {}   # pc_name -> StringVar
+        self.pc_student_vars = {}
+        self.pc_stage_vars = {}
+        self.pc_stage_cbs = {}
 
         student_items, self._separators = self._build_grouped_student_list()
 
         for i, pc in enumerate(self.pc_names):
             row = i + 2
+
             ttk.Label(frame, text=pc, font=FONT).grid(
                 row=row, column=0, padx=8, pady=3, sticky="w")
 
-            var = tk.StringVar(value="（未割当）")
-            self.pc_student_vars[pc] = var
-            cb = ttk.Combobox(frame, textvariable=var, values=student_items,
-                              state="readonly", font=FONT, width=18)
-            cb.grid(row=row, column=1, padx=8, pady=3, sticky="w")
-            cb.bind("<<ComboboxSelected>>", self._make_sep_guard(var))
+            # 生徒コンボボックス
+            student_var = tk.StringVar(value="（未割当）")
+            self.pc_student_vars[pc] = student_var
+            student_cb = ttk.Combobox(frame, textvariable=student_var,
+                                      values=student_items,
+                                      state="readonly", font=FONT, width=18)
+            student_cb.grid(row=row, column=1, padx=8, pady=3, sticky="w")
+
+            # ステージコンボボックス（初期は未割当なので未選択を含む）
+            stage_var = tk.StringVar(value=STAGE_UNSET)
+            self.pc_stage_vars[pc] = stage_var
+            stage_cb = ttk.Combobox(frame, textvariable=stage_var,
+                                    values=[STAGE_UNSET] + self.mkcd_displays,
+                                    state="readonly", font=FONT, width=18)
+            stage_cb.grid(row=row, column=2, padx=8, pady=3, sticky="w")
+            self.pc_stage_cbs[pc] = stage_cb
+
+            student_cb.bind("<<ComboboxSelected>>",
+                            self._make_student_changed(pc, student_var, stage_var, stage_cb))
 
         btn_row = len(self.pc_names) + 2
-        self.launch_btn = ttk.Button(
-            frame, text="全PC起動", command=self._launch_all)
-        self.launch_btn.grid(row=btn_row, column=0, columnspan=2,
-                             padx=10, pady=10, sticky="w")
+
+        self.refresh_btn = ttk.Button(frame, text="更新", command=self._refresh_pcs)
+        self.refresh_btn.grid(row=btn_row, column=0, padx=10, pady=10, sticky="w")
+
+        self.launch_btn = ttk.Button(frame, text="全PC起動", command=self._launch_all)
+        self.launch_btn.grid(row=btn_row, column=1, padx=(0, 8), pady=10, sticky="w")
 
         self.status_label = ttk.Label(frame, text="", font=FONT)
-        self.status_label.grid(row=btn_row, column=2, columnspan=2,
-                               padx=8, pady=10, sticky="w")
+        self.status_label.grid(row=btn_row, column=2, padx=8, pady=10, sticky="w")
 
-    def _make_sep_guard(self, var: tk.StringVar):
-        """セパレーターが選択されたら「（未割当）」に戻すコールバックを返す"""
-        def guard(event):
-            if var.get() in self._separators:
-                var.set("（未割当）")
-        return guard
+    def _make_student_changed(self, pc, student_var, stage_var, stage_cb):
+        """生徒コンボボックス変更時のコールバックを返す"""
+        def on_changed(event):
+            name = student_var.get()
+
+            # セパレーターが選ばれたら未割当に戻す
+            if name in self._separators:
+                student_var.set("（未割当）")
+                name = "（未割当）"
+
+            if name == "（未割当）":
+                # 未割当: ステージに未選択を含む全リストを設定
+                stage_cb.config(values=[STAGE_UNSET] + self.mkcd_displays)
+                stage_var.set(STAGE_UNSET)
+            else:
+                # 生徒確定: 未選択を選択肢から除外し、その生徒の next_mkcd をデフォルトに
+                stage_cb.config(values=self.mkcd_displays)
+                student = self._find_student_by_name(name)
+                default_disp = ""
+                if student:
+                    default_disp = self.file_to_disp.get(student.get("next_mkcd", ""), "")
+                if default_disp in self.mkcd_displays:
+                    stage_var.set(default_disp)
+                elif self.mkcd_displays:
+                    stage_var.set(self.mkcd_displays[0])
+
+        return on_changed
 
     def _find_student_by_name(self, name):
         for s in self.data["students"]:
@@ -256,27 +298,65 @@ class TeacherApp(tk.Tk):
 
     def _restore_last_assignment(self):
         last = self.data.get("last_assignment", {})
+        last_stage = self.data.get("last_stage", {})
+
         for pc, student_id in last.items():
             if pc not in self.pc_student_vars:
                 continue
             student = next((s for s in self.data["students"] if s["id"] == student_id), None)
-            if student:
-                self.pc_student_vars[pc].set(student["name"])
+            if not student:
+                continue
+
+            # 生徒をセット
+            self.pc_student_vars[pc].set(student["name"])
+
+            # ステージをセット: last_stage があればそれを優先、なければ next_mkcd
+            stage_file = last_stage.get(pc, student.get("next_mkcd", ""))
+            stage_disp = self.file_to_disp.get(stage_file, "")
+
+            if pc in self.pc_stage_cbs:
+                # 生徒が確定しているので未選択を除外
+                self.pc_stage_cbs[pc].config(values=self.mkcd_displays)
+                if stage_disp in self.mkcd_displays:
+                    self.pc_stage_vars[pc].set(stage_disp)
+                elif self.mkcd_displays:
+                    self.pc_stage_vars[pc].set(self.mkcd_displays[0])
 
     def _launch_all(self):
-        assignments = {}
-        for pc, var in self.pc_student_vars.items():
-            name = var.get()
-            if name != "（未割当）":
-                student = self._find_student_by_name(name)
-                if student:
-                    assignments[pc] = student
+        # 割り当て: {pc: (student, mkcd_file)}
+        assignments: dict[str, tuple[dict, str]] = {}
+        skipped_no_student = []
+
+        for pc, student_var in self.pc_student_vars.items():
+            name = student_var.get()
+            stage_disp = self.pc_stage_vars[pc].get()
+
+            if name == "（未割当）":
+                if stage_disp != STAGE_UNSET:
+                    # 生徒未割当でステージのみ選択 → スキップ
+                    skipped_no_student.append(pc)
+                continue
+
+            student = self._find_student_by_name(name)
+            if not student:
+                continue
+
+            # 生徒確定時にステージが未選択になることは通常ないが念のため
+            if stage_disp == STAGE_UNSET:
+                continue
+
+            mkcd_file = self.disp_to_file.get(stage_disp, stage_disp)
+            assignments[pc] = (student, mkcd_file)
+
+        if skipped_no_student:
+            print(f"[警告] 生徒未割当のためスキップ: {', '.join(skipped_no_student)}")
 
         if not assignments:
             messagebox.showwarning("警告", "割り当て済みのPCがありません。", parent=self)
             return
 
         self.launch_btn.config(state="disabled")
+        self.refresh_btn.config(state="disabled")
         self.status_label.config(text=f"起動中… (0/{len(assignments)})", foreground="")
 
         def worker():
@@ -284,11 +364,11 @@ class TeacherApp(tk.Tk):
             lock = threading.Lock()
             threads = []
 
-            def run(pc, student):
+            def run(pc, student, mkcd_file):
                 ok = launch_pc(
-                    pc, student,
+                    pc, student, mkcd_file,
                     self.data["site_url"],
-                    self.data["mkcd_share"]
+                    self.data["mkcd_share"],
                 )
                 with lock:
                     results[pc] = ok
@@ -296,8 +376,8 @@ class TeacherApp(tk.Tk):
                     self.status_label.config(
                         text=f"起動中… ({done}/{len(assignments)})")
 
-            for pc, student in assignments.items():
-                t = threading.Thread(target=run, args=(pc, student), daemon=True)
+            for pc, (student, mkcd_file) in assignments.items():
+                t = threading.Thread(target=run, args=(pc, student, mkcd_file), daemon=True)
                 threads.append(t)
                 t.start()
 
@@ -306,19 +386,40 @@ class TeacherApp(tk.Tk):
 
             errors = [pc for pc, ok in results.items() if not ok]
             if errors:
-                msg = f"完了（エラー {len(errors)} 台）"
-                self.status_label.config(text=msg, foreground="red")
+                self.status_label.config(
+                    text=f"完了（エラー {len(errors)} 台）", foreground="red")
             else:
-                msg = f"全{len(assignments)}台 起動成功"
-                self.status_label.config(text=msg, foreground="")
-            self.launch_btn.config(state="normal")
+                self.status_label.config(
+                    text=f"全{len(assignments)}台 起動成功", foreground="")
 
-            # last_assignment を保存
-            last = {pc: s["id"] for pc, s in assignments.items()}
-            self.data["last_assignment"] = last
+            self.launch_btn.config(state="normal")
+            self.refresh_btn.config(state="normal")
+
+            # last_assignment / last_stage を保存
+            self.data["last_assignment"] = {pc: s["id"] for pc, (s, _) in assignments.items()}
+            self.data["last_stage"] = {pc: f for pc, (_, f) in assignments.items()}
             save_data(self.data)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    # ---------------------------------------------------------- PC再スキャン
+    def _refresh_pcs(self):
+        """PC一覧を再スキャンしてタブ1を再描画する"""
+        self.refresh_btn.config(state="disabled")
+        self.launch_btn.config(state="disabled")
+        self.status_label.config(text="PCをスキャン中…", foreground="")
+
+        def do_refresh():
+            self.pc_names = detect_pc_names()
+            self.after(0, self._rebuild_tab1)
+
+        threading.Thread(target=do_refresh, daemon=True).start()
+
+    def _rebuild_tab1(self):
+        for widget in self.tab1.winfo_children():
+            widget.destroy()
+        self._build_tab1()
+        self._restore_last_assignment()
 
     # ------------------------------------------------- タブ2: 次回ワールド設定
     def _build_tab2(self):
