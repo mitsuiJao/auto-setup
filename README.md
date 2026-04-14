@@ -278,4 +278,17 @@ cat .\trigger_server.log
 ---
 
 ## 補足
-@memorandum
+
+### ビルド成果物について
+
+- **`dist/` フォルダは Git で管理していません** （`.gitignore` に含まれる）
+- **修正方法：** Python コード修正 → `build.ps1` 実行 → `dist/` に新しい exe が生成される
+- **別PCでの実行可否：** ビルド成果物（exe）は別PCでも実行可能です
+  - **前提条件：** Chrome がインストール済み、`agent.py` のセレクタが正しく設定済み
+  - **配布方法：** `dist\teacher\` と `dist\student\` フォルダの内容をそのまま配布
+
+### 開発環境での管理
+
+- **main**: 本番向け安定版
+- **develop**: 開発・統合ブランチ（機能追加・修正時はここから作業）
+- 修正後は develop → main へのマージを推奨
