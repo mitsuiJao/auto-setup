@@ -5,7 +5,7 @@
 先生PCのGUIアプリから、生徒PC全台に対してブラウザ自動操作（Selenium）を一括起動するツールです。
 
 ```
-先生PC: teacher_app.exe
+先生PC: 生徒PC起動アプリ.exe
     │  HTTP POST /start（ポート 8080）
     ▼
 生徒PC: trigger_server.exe（常駐）
@@ -19,7 +19,7 @@
 
 | ファイル | 説明 |
 |---|---|
-| `teacher_app.exe` | 先生PC用GUIアプリ |
+| `生徒PC起動アプリ.exe` | 先生PC用GUIアプリ |
 | `agent.exe` | 生徒PCで動くブラウザ自動操作 |
 | `trigger_server.exe` | 生徒PC常駐HTTPサーバー（port 8080） |
 | `students.json` | 生徒データ・設定（**要作成**・`students.json.example` から作成） |
@@ -43,7 +43,7 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 ```
 
 出力:
-- `dist\teacher\` → 先生PC用配布物（`teacher_app.exe` / `students.json.example` / `mkcd_map.json` 等）
+- `dist\teacher\` → 先生PC用配布物（`生徒PC起動アプリ.exe` / `students.json.example` / `mkcd_map.json` 等）
 - `dist\student\` → 生徒PC用配布物（`trigger_server.exe` / `agent.exe` 等）
 
 ---
@@ -202,7 +202,7 @@ submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
 
 ### 先生PC でアプリを起動
 
-`teacher_app.exe` をダブルクリックして起動します。
+`生徒PC起動アプリ.exe` をダブルクリックして起動します。
 
 ### タブ1「授業開始」
 
@@ -229,7 +229,7 @@ submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
 | `配布フォルダ\lessons\` | `.mkcd` ファイル置き場（先生PCのみ・共有） |
 | `配布フォルダ\students.json` | 生徒データ設定（先生PCのみ・要作成） |
 | `配布フォルダ\students.json.example` | `students.json` のテンプレート（先生PCのみ） |
-| `配布フォルダ\teacher_app.exe` | GUIアプリ（先生PCのみ） |
+| `配布フォルダ\生徒PC起動アプリ.exe` | GUIアプリ（先生PCのみ） |
 | `配布フォルダ\agent.exe` | ブラウザ操作（生徒PCのみ） |
 | `配布フォルダ\trigger_server.exe` | 常駐サーバー（生徒PCのみ） |
 | `配布フォルダ\.env` | トークン（先生・生徒共通・要作成） |

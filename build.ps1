@@ -39,11 +39,11 @@ Write-Host "[1/3] teacher_app.exe をビルドしています..." -ForegroundCol
 pyinstaller @CommonArgs `
     --noconsole `
     --icon "$Root\assets\icon.ico" `
-    --name teacher_app `
+    --name "生徒PC起動アプリ" `
     "$Root\teacher_app.py"
 
-Copy-Item "$WorkDir\teacher_app.exe" -Destination $DistTeacher -Force
-Write-Host "[OK] $DistTeacher\teacher_app.exe" -ForegroundColor Green
+Copy-Item "$WorkDir\生徒PC起動アプリ.exe" -Destination $DistTeacher -Force
+Write-Host "[OK] $DistTeacher\生徒PC起動アプリ.exe" -ForegroundColor Green
 
 # --- 2. trigger_server.exe（常駐サーバー・コンソール非表示） ---
 Write-Host ""
@@ -93,7 +93,7 @@ Write-Host "=== ビルド完了 ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "配布物:"
 Write-Host "  先生PC用: $DistTeacher\"
-Write-Host "    teacher_app.exe / students.json.example / mkcd_map.json / .env.example / setup_teacher.ps1"
+Write-Host "    生徒PC起動アプリ.exe / students.json.example / mkcd_map.json / .env.example / setup_teacher.ps1"
 Write-Host ""
 Write-Host "注意: students.json.example をコピーして students.json を作成し、生徒データを編集してから配布してください"
 Write-Host ""

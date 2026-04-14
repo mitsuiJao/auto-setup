@@ -57,7 +57,7 @@ jobs:
           body: |
             ## 配布パッケージ
 
-            - **teacher-app.zip** - 先生PC用（teacher_app.exe + 設定ファイル）
+            - **teacher-app.zip** - 先生PC用（生徒PC起動アプリ.exe + 設定ファイル）
             - **student-app.zip** - 生徒PC用（trigger_server.exe + agent.exe + セットアップスクリプト）
 
             ### セットアップ手順

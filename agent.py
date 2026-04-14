@@ -4,6 +4,7 @@ agent.py - 生徒PC用エージェントスクリプト
 """
 
 import argparse
+import logging
 import os
 import sys
 import time
@@ -13,6 +14,19 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+
+_HERE = (os.path.dirname(sys.executable)
+         if getattr(sys, "frozen", False)
+         else os.path.dirname(os.path.abspath(__file__)))
+LOG_FILE = os.path.join(_HERE, "agent.log")
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    encoding="utf-8",
+)
+log = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -44,19 +58,20 @@ def login(driver, site_url, login_id, login_pw):
 
     # TODO: ログイン後に到達するURLや要素のセレクタを実際のサイトに合わせて変更してください
     wait.until(EC.url_changes(site_url))
-    print(f"[agent] ログイン成功: {login_id}")
+    log.info("ログイン成功: %s", login_id)
 
 
 def open_mkcd(mkcd_path):
     if not os.path.exists(mkcd_path):
-        print(f"[agent] エラー: .mkcdファイルが見つかりません: {mkcd_path}", file=sys.stderr)
+        log.error(".mkcdファイルが見つかりません: %s", mkcd_path)
         sys.exit(1)
     os.startfile(mkcd_path)
-    print(f"[agent] .mkcdファイルを起動: {mkcd_path}")
+    log.info(".mkcdファイルを起動: %s", mkcd_path)
 
 
 def main():
     args = parse_args()
+    log.info("agent 起動: login_id=%s site_url=%s mkcd_path=%s", args.login_id, args.site_url, args.mkcd_path)
 
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
@@ -68,8 +83,9 @@ def main():
         login(driver, args.site_url, args.login_id, args.login_pw)
         time.sleep(2)
         open_mkcd(args.mkcd_path)
+        log.info("完了")
     except Exception as e:
-        print(f"[agent] エラー: {e}", file=sys.stderr)
+        log.exception("予期しないエラー: %s", e)
         driver.quit()
         sys.exit(1)
 

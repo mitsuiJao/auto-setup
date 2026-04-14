@@ -3,6 +3,7 @@ teacher_app.py - 先生PC用GUIアプリ
 """
 
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -18,6 +19,15 @@ from tkinter import ttk, messagebox
 _HERE = (os.path.dirname(sys.executable)
          if getattr(sys, "frozen", False)
          else os.path.dirname(os.path.abspath(__file__)))
+
+logging.basicConfig(
+    filename=os.path.join(_HERE, "teacher_app.log"),
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    encoding="utf-8",
+)
+log = logging.getLogger(__name__)
+
 DATA_FILE = os.path.join(_HERE, "students.json")
 MKCD_MAP_FILE = os.path.join(_HERE, "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
@@ -73,7 +83,7 @@ def load_mkcd_map():
 
 def detect_pc_names(max_pc: int = 10):
     """PC-01〜PC-{max_pc} に直接ホスト名でpingして応答があったPCを返す"""
-    print(f"[検出開始] PC-01〜PC-{max_pc:02d} に接続確認中...")
+    log.info("PC検出開始: PC-01〜PC-%02d", max_pc)
 
     ps_script = f"""
 $ErrorActionPreference = "SilentlyContinue"
@@ -99,8 +109,6 @@ $jobs | ForEach-Object {{
             capture_output=True, text=True, timeout=DETECTION_TIMEOUT
         )
 
-        print(result.stdout)
-
         pc_list = sorted([
             line.strip().replace("[OK] ", "")
             for line in result.stdout.strip().split('\n')
@@ -108,19 +116,19 @@ $jobs | ForEach-Object {{
         ])
 
         if pc_list:
-            print(f"[検出完了] {len(pc_list)} 台を検出: {', '.join(pc_list)}")
+            log.info("PC検出完了: %d 台を検出: %s", len(pc_list), ', '.join(pc_list))
             return pc_list
         else:
-            print("[検出] 応答するPCが見つかりません")
+            log.info("PC検出: 応答するPCが見つかりません")
 
     except subprocess.TimeoutExpired:
-        print("[タイムアウト] PC検出がタイムアウトしました")
+        log.warning("PC検出タイムアウト")
     except Exception as e:
-        print(f"[検出エラー] {e}")
+        log.error("PC検出エラー: %s", e)
 
     # フォールバック: デフォルトのPC リスト
     fallback_pcs = [f"PC-{i:02d}" for i in range(1, 10)]
-    print("[デフォルト] PC-01～PC-09 を使用します")
+    log.info("デフォルト PC-01〜PC-09 を使用")
     return fallback_pcs
 
 
@@ -145,16 +153,16 @@ def launch_pc(pc_name, student, mkcd_file, site_url, mkcd_share):
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read())
             if body.get("status") == "ok":
-                print(f"[launch_pc] {pc_name} 起動成功")
+                log.info("%s 起動成功", pc_name)
                 return True
-            print(f"[launch_pc] {pc_name} サーバー応答エラー: {body}")
+            log.warning("%s サーバー応答エラー: %s", pc_name, body)
             return False
     except urllib.error.HTTPError as e:
-        print(f"[launch_pc] {pc_name} HTTPエラー {e.code}: {e.read().decode()}")
+        log.error("%s HTTPエラー %s: %s", pc_name, e.code, e.read().decode())
     except urllib.error.URLError as e:
-        print(f"[launch_pc] {pc_name} 接続失敗: {e.reason}")
+        log.error("%s 接続失敗: %s", pc_name, e.reason)
     except Exception as e:
-        print(f"[launch_pc] {pc_name} エラー: {e}")
+        log.error("%s エラー: %s", pc_name, e)
     return False
 
 
@@ -353,7 +361,7 @@ class TeacherApp(tk.Tk):
             assignments[pc] = (student, mkcd_file)
 
         if skipped_no_student:
-            print(f"[警告] 生徒未割当のためスキップ: {', '.join(skipped_no_student)}")
+            log.warning("生徒未割当のためスキップ: %s", ', '.join(skipped_no_student))
 
         if not assignments:
             messagebox.showwarning("警告", "割り当て済みのPCがありません。", parent=self)
@@ -403,6 +411,7 @@ class TeacherApp(tk.Tk):
             self.data["last_assignment"] = {pc: s["id"] for pc, (s, _) in assignments.items()}
             self.data["last_stage"] = {pc: f for pc, (_, f) in assignments.items()}
             save_data(self.data)
+            log.info("割り当て保存完了: %s", self.data["last_assignment"])
 
         threading.Thread(target=worker, daemon=True).start()
 
