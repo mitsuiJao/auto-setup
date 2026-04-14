@@ -24,12 +24,12 @@ if ($null -eq $existingShare) {
     Write-Host "[SKIP] 共有 '$shareName' は既に存在します"
 }
 
-# --- Python / pip の確認 ---
-try {
-    $pyVer = python --version 2>&1
-    Write-Host "[OK] Python: $pyVer"
-} catch {
-    Write-Warning "Python が見つかりません。teacher_app.py 実行に必要です。手動でインストールしてください。"
+# --- teacher_app.exe の確認 ---
+$appExe = "$PSScriptRoot\teacher_app.exe"
+if (Test-Path $appExe) {
+    Write-Host "[OK] teacher_app.exe を確認しました"
+} else {
+    Write-Warning "teacher_app.exe が見つかりません。build.ps1 を実行してビルドしてください。"
 }
 
 # --- .env の確認 ---
@@ -49,7 +49,7 @@ Write-Host "     例: TRIGGER_TOKEN=your_secret_token_here"
 Write-Host "  2. $lessonsDir に各生徒の .mkcd ファイルを配置してください"
 Write-Host "  3. $PSScriptRoot\students.json の内容（ログイン情報・ワールド名）を編集してください"
 Write-Host "  4. 生徒PCで setup_student.ps1 を実行してください（.env も一緒に配布されます）"
-Write-Host "  5. teacher_app.py を実行してください: python `"$PSScriptRoot\teacher_app.py`""
+Write-Host "  5. teacher_app.exe を起動してください"
 Write-Host ""
 Write-Host "=== 先生PC初期設定が完了しました ===" -ForegroundColor Green
 Write-Host "先生PCのコンピュータ名: $env:COMPUTERNAME"

@@ -11,8 +11,12 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = 8080
-_HERE = os.path.dirname(os.path.abspath(__file__))
-AGENT_PATH = os.path.join(_HERE, "agent.py")
+_HERE = (os.path.dirname(sys.executable)
+         if getattr(sys, "frozen", False)
+         else os.path.dirname(os.path.abspath(__file__)))
+AGENT_PATH = (os.path.join(_HERE, "agent.exe")
+              if getattr(sys, "frozen", False)
+              else os.path.join(_HERE, "agent.py"))
 LOG_FILE = os.path.join(_HERE, "trigger_server.log")
 
 # pythonw.exe はコンソールがないのでファイルにログを書く
@@ -70,16 +74,24 @@ class Handler(BaseHTTPRequestHandler):
         mkcd_path = payload.get("mkcd_path", "")
         site_url  = payload.get("site_url",  "")
 
-        cmd = [sys.executable, AGENT_PATH,
-               "--login_id",  login_id,
-               "--login_pw",  login_pw,
-               "--mkcd_path", mkcd_path,
-               "--site_url",  site_url]
+        # EXE時は agent.exe を直接呼ぶ。スクリプト時は python interpreter 経由
+        if getattr(sys, "frozen", False):
+            cmd = [AGENT_PATH,
+                   "--login_id",  login_id,
+                   "--login_pw",  login_pw,
+                   "--mkcd_path", mkcd_path,
+                   "--site_url",  site_url]
+        else:
+            cmd = [sys.executable, AGENT_PATH,
+                   "--login_id",  login_id,
+                   "--login_pw",  login_pw,
+                   "--mkcd_path", mkcd_path,
+                   "--site_url",  site_url]
 
         try:
             # CREATE_NEW_CONSOLE でユーザーセッションの新しいウィンドウとして起動
             subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
-            log.info("agent.py を起動しました")
+            log.info("agent を起動しました: %s", AGENT_PATH)
             self._respond(200, {"status": "ok"})
         except Exception as e:
             log.error("起動エラー: %s", e)

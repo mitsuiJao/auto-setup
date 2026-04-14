@@ -13,7 +13,11 @@ import urllib.error
 import urllib.request
 from tkinter import ttk, messagebox
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
+# PyInstaller --onefile ビルド時は __file__ が一時展開フォルダを指すため
+# sys.executable（EXEファイル自身）のディレクトリを使う
+_HERE = (os.path.dirname(sys.executable)
+         if getattr(sys, "frozen", False)
+         else os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(_HERE, "students.json")
 MKCD_MAP_FILE = os.path.join(_HERE, "mkcd_map.json")
 FONT = ("Yu Gothic", 11)
