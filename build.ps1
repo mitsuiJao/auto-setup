@@ -72,7 +72,14 @@ Write-Host ""
 Write-Host "設定ファイルをコピーしています..."
 
 # 先生PC用
-Copy-Item "$Root\students.json"     -Destination $DistTeacher -Force
+# students.json が存在する場合はそのままコピー、なければ example をコピー
+if (Test-Path "$Root\students.json") {
+    Copy-Item "$Root\students.json" -Destination $DistTeacher -Force
+} else {
+    Copy-Item "$Root\students.json.example" -Destination "$DistTeacher\students.json" -Force
+    Write-Host "[注意] students.json が見つからないため students.json.example をコピーしました。配布前に内容を編集してください。" -ForegroundColor Yellow
+}
+Copy-Item "$Root\students.json.example" -Destination $DistTeacher -Force
 Copy-Item "$Root\mkcd_map.json"     -Destination $DistTeacher -Force
 Copy-Item "$Root\.env.example"      -Destination $DistTeacher -Force
 Copy-Item "$Root\setup_teacher.ps1" -Destination $DistTeacher -Force
