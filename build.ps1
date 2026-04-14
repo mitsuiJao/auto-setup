@@ -38,6 +38,7 @@ Write-Host ""
 Write-Host "[1/3] teacher_app.exe をビルドしています..." -ForegroundColor Yellow
 pyinstaller @CommonArgs `
     --noconsole `
+    --icon "$Root\assets\icon.ico" `
     --name teacher_app `
     "$Root\teacher_app.py"
 
@@ -49,6 +50,7 @@ Write-Host ""
 Write-Host "[2/3] trigger_server.exe をビルドしています..." -ForegroundColor Yellow
 pyinstaller @CommonArgs `
     --noconsole `
+    --icon "$Root\assets\icon.ico" `
     --name trigger_server `
     "$Root\trigger_server.py"
 
@@ -60,6 +62,7 @@ Write-Host ""
 Write-Host "[3/3] agent.exe をビルドしています..." -ForegroundColor Yellow
 pyinstaller @CommonArgs `
     --console `
+    --icon "$Root\assets\icon.ico" `
     --name agent `
     --collect-all selenium `
     "$Root\agent.py"
