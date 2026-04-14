@@ -2,3 +2,9 @@
 .venv
 
 students.json
+
+# ビルド成果物
+dist/
+build_tmp/
+pyinstaller_work/
+*.spec
