@@ -1,4 +1,4 @@
-# setup_student.ps1 - 生徒PC初期設定スクリプト（1回だけ実行）
+﻿# setup_student.ps1 - 生徒PC初期設定スクリプト（1回だけ実行）
 # 管理者権限で実行してください
 
 $ErrorActionPreference = "Stop"

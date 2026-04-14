@@ -1,4 +1,4 @@
-# build.ps1 - EXEビルドスクリプト（ビルド環境のみで実行）
+﻿# build.ps1 - EXEビルドスクリプト（ビルド環境のみで実行）
 # 実行: Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force; .\build.ps1
 #
 # 出力:
