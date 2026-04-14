@@ -22,9 +22,10 @@
 | `teacher_app.exe` | 先生PC用GUIアプリ |
 | `agent.exe` | 生徒PCで動くブラウザ自動操作 |
 | `trigger_server.exe` | 生徒PC常駐HTTPサーバー（port 8080） |
-| `students.json` | 生徒データ・設定 |
+| `students.json` | 生徒データ・設定（**要作成**・`students.json.example` から作成） |
+| `students.json.example` | `students.json` のテンプレート |
 | `mkcd_map.json` | ワールド名の表示名↔ファイル名対応表 |
-| `.env` | 認証トークン（gitignore済み・要作成） |
+| `.env` | 認証トークン（**要作成**・`.env.example` から作成、先生PC・生徒PC共通） |
 | `.env.example` | `.env` のテンプレート |
 | `setup_teacher.ps1` | 先生PC初期設定（1回だけ実行） |
 | `setup_student.ps1` | 生徒PC初期設定（1回だけ実行） |
@@ -73,6 +74,8 @@ TRIGGER_TOKEN=your_secret_token_here
 > **注意:** このトークンは生徒PCにも配布されます。推測されにくい文字列にしてください。  
 > 認証不要の場合は `TRIGGER_TOKEN=` （空欄）にすることもできます。
 
+作成した `.env` は、後の手順で生徒PC用配布フォルダにもコピーして配布します。
+
 ---
 
 ### Step 2: 先生PCをセットアップする
@@ -91,16 +94,26 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 完了後、以下を行います。
 
 1. `lessons\` に各生徒の `.mkcd` ファイルを配置
-2. `students.json` を編集（後述）
+2. `students.json` を作成・編集（後述）
 3. `mkcd_map.json` を編集（後述）
 
 ---
 
 ### Step 3: 生徒PCをセットアップする（各台）
 
-生徒PC用配布フォルダ（`dist\student\`）をUSBメモリ等で生徒PCにコピーします。
+**GitHub Releases からの配布（推奨）:**
 
-PowerShell を**管理者権限**で開き、以下を実行します。
+1. GitHub Releases から `student-app.zip` をダウンロードして展開
+2. Step 1 で作成した `.env` を展開したフォルダにコピー
+3. USBメモリ等で生徒PCへ転送
+
+**開発環境からの直接配布:**
+
+1. `dist\student\` フォルダをコピー
+2. Step 1 で作成した `.env` を `dist\student\` にコピー
+3. USBメモリ等で生徒PCへ転送
+
+生徒PCで PowerShell を**管理者権限**で開き、以下を実行します。
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
@@ -214,11 +227,13 @@ submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
 |---|---|
 | `配布フォルダ\` | 作業ディレクトリ |
 | `配布フォルダ\lessons\` | `.mkcd` ファイル置き場（先生PCのみ・共有） |
-| `配布フォルダ\students.json` | 設定ファイル（先生PCのみ） |
+| `配布フォルダ\students.json` | 生徒データ設定（先生PCのみ・要作成） |
+| `配布フォルダ\students.json.example` | `students.json` のテンプレート（先生PCのみ） |
 | `配布フォルダ\teacher_app.exe` | GUIアプリ（先生PCのみ） |
 | `配布フォルダ\agent.exe` | ブラウザ操作（生徒PCのみ） |
 | `配布フォルダ\trigger_server.exe` | 常駐サーバー（生徒PCのみ） |
-| `配布フォルダ\.env` | トークン（先生・生徒共通） |
+| `配布フォルダ\.env` | トークン（先生・生徒共通・要作成） |
+| `配布フォルダ\.env.example` | `.env` のテンプレート |
 | `配布フォルダ\trigger_server.log` | サーバーログ（生徒PC） |
 
 ---
