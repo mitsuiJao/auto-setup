@@ -42,7 +42,7 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 ```
 
 出力:
-- `dist\teacher\` → 先生PC用配布物（`teacher_app.exe` / `students.json` / `mkcd_map.json` 等）
+- `dist\teacher\` → 先生PC用配布物（`teacher_app.exe` / `students.json.example` / `mkcd_map.json` 等）
 - `dist\student\` → 生徒PC用配布物（`trigger_server.exe` / `agent.exe` 等）
 
 ---
@@ -120,9 +120,13 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
 ---
 
-### Step 4: `students.json` を編集する
+### Step 4: `students.json` を作成・編集する
 
-先生PC配布フォルダ内の `students.json` を編集します。
+`students.json.example` をコピーして `students.json` を作成し、編集します。
+
+```powershell
+Copy-Item students.json.example students.json
+```
 
 ```json
 {

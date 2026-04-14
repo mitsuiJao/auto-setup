@@ -72,13 +72,6 @@ Write-Host ""
 Write-Host "設定ファイルをコピーしています..."
 
 # 先生PC用
-# students.json が存在する場合はそのままコピー、なければ example をコピー
-if (Test-Path "$Root\students.json") {
-    Copy-Item "$Root\students.json" -Destination $DistTeacher -Force
-} else {
-    Copy-Item "$Root\students.json.example" -Destination "$DistTeacher\students.json" -Force
-    Write-Host "[注意] students.json が見つからないため students.json.example をコピーしました。配布前に内容を編集してください。" -ForegroundColor Yellow
-}
 Copy-Item "$Root\students.json.example" -Destination $DistTeacher -Force
 Copy-Item "$Root\mkcd_map.json"     -Destination $DistTeacher -Force
 Copy-Item "$Root\.env.example"      -Destination $DistTeacher -Force
@@ -97,7 +90,9 @@ Write-Host "=== ビルド完了 ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "配布物:"
 Write-Host "  先生PC用: $DistTeacher\"
-Write-Host "    teacher_app.exe / students.json / mkcd_map.json / .env.example / setup_teacher.ps1"
+Write-Host "    teacher_app.exe / students.json.example / mkcd_map.json / .env.example / setup_teacher.ps1"
+Write-Host ""
+Write-Host "注意: students.json.example をコピーして students.json を作成し、生徒データを編集してから配布してください"
 Write-Host ""
 Write-Host "  生徒PC用: $DistStudent\"
 Write-Host "    trigger_server.exe / agent.exe / .env.example / setup_student.ps1"

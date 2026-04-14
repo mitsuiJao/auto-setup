@@ -63,8 +63,9 @@ jobs:
             ### セットアップ手順
 
             1. 対応するZIPをダウンロードして展開
-            2. `.env.example` をコピーして `.env` を作成
-            3. `setup_teacher.ps1` または `setup_student.ps1` を実行
-            4. 詳細は README.md を参照
+            2. `.env.example` をコピーして `.env` を作成し、`TRIGGER_TOKEN` を設定
+            3. **先生PCのみ:** `students.json.example` をコピーして `students.json` を作成し、生徒データを編集
+            4. `setup_teacher.ps1` または `setup_student.ps1` を実行
+            5. 詳細は README.md を参照
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
