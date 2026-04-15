@@ -43,18 +43,30 @@ def login(driver, site_url, login_id, login_pw):
     wait = WebDriverWait(driver, 30)
 
     # TODO: ログインIDフィールドのセレクタを実際のサイトに合わせて変更してください
-    id_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='uid']")))
+    # ok
+    id_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='login_id']")))
     id_field.clear()
     id_field.send_keys(login_id)
 
     # TODO: パスワードフィールドのセレクタを実際のサイトに合わせて変更してください
-    pw_field = driver.find_element(By.CSS_SELECTOR, "input[name='pwd']")
+    # ok
+    pw_field = driver.find_element(By.CSS_SELECTOR, "input[name='userpassword']")
     pw_field.clear()
     pw_field.send_keys(login_pw)
 
     # TODO: ログインボタンのセレクタを実際のサイトに合わせて変更してください
-    submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='order']")
+    # ok
+    submit_btn = driver.find_element(By.ID, "el_user_login_btn")
     submit_btn.click()
+
+    # ログイン後にアラートが出る場合（前回セッションの継続確認など）は閉じる
+    try:
+        WebDriverWait(driver, 5).until(EC.alert_is_present())
+        alert = driver.switch_to.alert
+        log.info("アラートを検出・閉じます: %s", alert.text)
+        alert.accept()
+    except Exception:
+        pass
 
     # TODO: ログイン後に到達するURLや要素のセレクタを実際のサイトに合わせて変更してください
     wait.until(EC.url_changes(site_url))
@@ -75,6 +87,10 @@ def main():
 
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
+    chrome_options.add_argument("--disable-session-crashed-bubble")
+    chrome_options.add_argument("--no-default-browser-check")
+    chrome_options.add_argument("--no-first-run")
+    chrome_options.add_experimental_option("detach", True)
     # TODO: ChromeDriverのパスが通っていない場合は executable_path を指定してください
 
     driver = webdriver.Chrome(options=chrome_options)
