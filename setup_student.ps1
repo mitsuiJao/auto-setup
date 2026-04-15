@@ -43,6 +43,12 @@ if (-not (Test-Path $agentExe)) {
 }
 Write-Host "[OK] trigger_server.exe / agent.exe を確認しました"
 
+# --- ダウンロードしたEXEファイルのロック解除（Zone.Identifier属性を削除） ---
+Write-Host "EXEファイルのロックを解除しています..."
+Unblock-File -Path $serverExe -ErrorAction SilentlyContinue
+Unblock-File -Path $agentExe -ErrorAction SilentlyContinue
+Write-Host "[OK] EXEファイルのロックを解除しました"
+
 # --- .env の確認 ---
 $envPath = "$PSScriptRoot\.env"
 if (Test-Path $envPath) {
@@ -71,7 +77,7 @@ $vbsContent = @"
 Set WshShell = CreateObject("WScript.Shell")
 WshShell.Run """$serverExe""", 0, False
 "@
-Set-Content -Path $vbsPath -Value $vbsContent -Encoding UTF8
+Set-Content -Path $vbsPath -Value $vbsContent -Encoding Default
 Write-Host "[OK] スタートアップ登録: $vbsPath"
 
 # 今すぐ起動（既存プロセスを停止してから）
