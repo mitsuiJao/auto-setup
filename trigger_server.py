@@ -11,6 +11,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = 8080
+MAX_BODY = 4096  # H-6: リクエストボディの上限 (4KB)
 _HERE = (os.path.dirname(sys.executable)
          if getattr(sys, "frozen", False)
          else os.path.dirname(os.path.abspath(__file__)))
@@ -55,7 +56,16 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(404, {"error": "not found"})
             return
 
-        length = int(self.headers.get("Content-Length", 0))
+        # H-6: Content-Length を検証し過大なリクエストを拒否
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self._respond(400, {"error": "invalid content-length"})
+            return
+        if length > MAX_BODY:
+            self._respond(400, {"error": "request too large"})
+            return
+
         body = self.rfile.read(length)
         try:
             payload = json.loads(body)
@@ -73,6 +83,20 @@ class Handler(BaseHTTPRequestHandler):
         login_pw  = payload.get("login_pw",  "")
         mkcd_path = payload.get("mkcd_path", "")
         site_url  = payload.get("site_url",  "")
+
+        # H-5: 必須フィールドの存在チェック
+        missing = [k for k, v in [("login_id", login_id), ("login_pw", login_pw),
+                                   ("mkcd_path", mkcd_path), ("site_url", site_url)] if not v]
+        if missing:
+            log.warning("必須フィールドが欠けています: %s", missing)
+            self._respond(400, {"error": f"missing fields: {missing}"})
+            return
+
+        # H-5: パストラバーサル対策
+        if ".." in mkcd_path:
+            log.warning("不正なパスを検出: %s", mkcd_path)
+            self._respond(400, {"error": "invalid path"})
+            return
 
         # EXE時は agent.exe を直接呼ぶ。スクリプト時は python interpreter 経由
         if getattr(sys, "frozen", False):
