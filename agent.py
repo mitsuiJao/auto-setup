@@ -14,6 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException, NoAlertPresentException
 
 _HERE = (os.path.dirname(sys.executable)
          if getattr(sys, "frozen", False)
@@ -60,17 +61,20 @@ def login(driver, site_url, login_id, login_pw):
     submit_btn.click()
 
     # ログイン後にアラートが出る場合（前回セッションの継続確認など）は閉じる
+    # M-5: except は alert 関連の例外のみ捕捉し、他のエラーを握りつぶさない
     try:
         WebDriverWait(driver, 5).until(EC.alert_is_present())
         alert = driver.switch_to.alert
         log.info("アラートを検出・閉じます: %s", alert.text)
         alert.accept()
-    except Exception:
-        pass
+    except (TimeoutException, NoAlertPresentException):
+        pass  # アラートなし（正常）
 
     # TODO: ログイン後に到達するURLや要素のセレクタを実際のサイトに合わせて変更してください
     wait.until(EC.url_changes(site_url))
-    log.info("ログイン成功: %s", login_id)
+    # M-4: URL 変化後の実際の遷移先をログに残す（ログイン失敗ページへの誘導を検知しやすくする）
+    current_url = driver.current_url
+    log.info("ログイン後のURL: %s (login_id=%s)", current_url, login_id)
 
 
 def open_mkcd(mkcd_path):

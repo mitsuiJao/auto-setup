@@ -100,9 +100,22 @@ def load_mkcd_map():
         file_to_disp : dict        file名 -> display名
         disp_to_file : dict        display名 -> file名
     """
-    with open(MKCD_MAP_FILE, encoding="utf-8") as f:
-        entries = json.load(f)
+    # M-1: ファイル欠損・破損時に分かりやすいエラーを表示して終了
+    try:
+        with open(MKCD_MAP_FILE, encoding="utf-8") as f:
+            entries = json.load(f)
+    except FileNotFoundError:
+        messagebox.showerror("起動エラー",
+                             f"ワールド設定ファイルが見つかりません。\n{MKCD_MAP_FILE}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        messagebox.showerror("起動エラー",
+                             f"mkcd_map.json の読み込みに失敗しました。\n{e}")
+        sys.exit(1)
     displays = [e["display"] for e in entries]
+    # M-3: 空リストの場合は起動時に警告（IndexError 防止のため早期に気付けるよう）
+    if not displays:
+        log.warning("mkcd_map.json にエントリがありません。ワールドを選択できません。")
     file_to_disp = {e["file"]: e["display"] for e in entries}
     disp_to_file = {e["display"]: e["file"] for e in entries}
     return displays, file_to_disp, disp_to_file
@@ -460,10 +473,29 @@ class TeacherApp(tk.Tk):
         threading.Thread(target=do_refresh, daemon=True).start()
 
     def _rebuild_tab1(self):
+        # M-2: 再構築前に UI の現在状態を退避（未保存の割り当てを維持する）
+        saved_students = {pc: var.get() for pc, var in self.pc_student_vars.items()}
+        saved_stages   = {pc: var.get() for pc, var in self.pc_stage_vars.items()}
+
         for widget in self.tab1.winfo_children():
             widget.destroy()
         self._build_tab1()
+
+        # まず last_assignment で復元（新たに追加された PC 向け）
         self._restore_last_assignment()
+
+        # 退避した UI 状態で上書き（未保存の手動割り当てを優先）
+        for pc, name in saved_students.items():
+            if pc not in self.pc_student_vars or name == "（未割当）":
+                continue
+            self.pc_student_vars[pc].set(name)
+            stage_disp = saved_stages.get(pc, STAGE_UNSET)
+            if pc in self.pc_stage_cbs:
+                self.pc_stage_cbs[pc].config(values=self.mkcd_displays)
+                if stage_disp in self.mkcd_displays:
+                    self.pc_stage_vars[pc].set(stage_disp)
+                elif self.mkcd_displays:
+                    self.pc_stage_vars[pc].set(self.mkcd_displays[0])
 
     # ------------------------------------------------- タブ2: 次回ワールド設定
     def _build_tab2(self):

@@ -41,6 +41,11 @@ pyinstaller @CommonArgs `
     --icon "$Root\assets\icon.ico" `
     --name "生徒PC起動アプリ" `
     "$Root\teacher_app.py"
+# M-9: PyInstaller の終了コードを確認し、失敗時は即中断
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "[ERROR] teacher_app のビルドに失敗しました (exit code: $LASTEXITCODE)"
+    exit 1
+}
 
 Copy-Item "$WorkDir\生徒PC起動アプリ.exe" -Destination $DistTeacher -Force
 Write-Host "[OK] $DistTeacher\生徒PC起動アプリ.exe" -ForegroundColor Green
@@ -53,6 +58,10 @@ pyinstaller @CommonArgs `
     --icon "$Root\assets\icon.ico" `
     --name trigger_server `
     "$Root\trigger_server.py"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "[ERROR] trigger_server のビルドに失敗しました (exit code: $LASTEXITCODE)"
+    exit 1
+}
 
 Copy-Item "$WorkDir\trigger_server.exe" -Destination $DistStudent -Force
 Write-Host "[OK] $DistStudent\trigger_server.exe" -ForegroundColor Green
@@ -66,6 +75,10 @@ pyinstaller @CommonArgs `
     --name agent `
     --collect-all selenium `
     "$Root\agent.py"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "[ERROR] agent のビルドに失敗しました (exit code: $LASTEXITCODE)"
+    exit 1
+}
 
 Copy-Item "$WorkDir\agent.exe" -Destination $DistStudent -Force
 Write-Host "[OK] $DistStudent\agent.exe" -ForegroundColor Green
