@@ -144,7 +144,7 @@ Copy-Item students.json.example students.json
 ```json
 {
   "site_url": "https://your-site.com/login",
-  "mkcd_share": "\\\\TEACHER-PC\\lessons\\",
+  "mkcd_share": "",
   "last_assignment": {},
   "students": [
     {
@@ -163,7 +163,7 @@ Copy-Item students.json.example students.json
 | キー | 説明 |
 |---|---|
 | `site_url` | ログインページのURL |
-| `mkcd_share` | 先生PCの共有フォルダパス（`\\コンピュータ名\lessons\`） |
+| `mkcd_share` | 設定不要（アプリ起動時に先生PCのホスト名を自動取得） |
 | `weekday` | 曜日（0=月〜6=日）。GUIでのグループ表示に使用 |
 | `class` | クラス番号。GUIでのグループ表示に使用 |
 | `next_mkcd` | 次回起動するワールドのデフォルトファイル名 |
