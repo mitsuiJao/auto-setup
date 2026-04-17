@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m 'Fix VBS encoding for Unblock-File in setup_student.ps1:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(mv .claude/settings.local.json .claude/settings.local.json.bak)",
+      "Bash(mv .claude/settings.local.json.bak .claude/settings.local.json)",
+      "Bash(git tag:*)"
+    ]
+  }
+}

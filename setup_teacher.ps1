@@ -18,8 +18,9 @@ if (-not (Test-Path $lessonsDir)) {
 $shareName = "lessons"
 $existingShare = Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue
 if ($null -eq $existingShare) {
-    New-SmbShare -Name $shareName -Path $lessonsDir -ReadAccess "Everyone" | Out-Null
-    Write-Host "[OK] 共有フォルダ \\$env:COMPUTERNAME\$shareName を作成しました"
+    # M-8: "Everyone" はゲスト含む全ユーザーに公開されるため "Authenticated Users" に制限
+    New-SmbShare -Name $shareName -Path $lessonsDir -ReadAccess "Authenticated Users" | Out-Null
+    Write-Host "[OK] 共有フォルダ \\$env:COMPUTERNAME\$shareName を作成しました（認証済みユーザーのみ読み取り可）"
 } else {
     Write-Host "[SKIP] 共有 '$shareName' は既に存在します"
 }
