@@ -76,7 +76,13 @@ Write-Host "[OK] スタートアップ登録: $vbsPath"
 
 # 今すぐ起動（既存プロセスを停止してから）
 Get-Process -Name "trigger_server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Process -FilePath $serverExe -WindowStyle Hidden
+Start-Sleep -Seconds 1
+try {
+    Start-Process -FilePath $serverExe -WindowStyle Hidden -WorkingDirectory $PSScriptRoot -ErrorAction Stop
+} catch {
+    Write-Host "[エラー] trigger_server.exe の起動に失敗しました: $_" -ForegroundColor Red
+    exit 1
+}
 Start-Sleep -Seconds 2
 
 $listening = netstat -an 2>$null | Select-String ":8080"
