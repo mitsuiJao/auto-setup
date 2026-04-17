@@ -72,13 +72,15 @@ def load_mkcd_map():
         displays     : list[str]   プルダウン表示用ラベル一覧
         file_to_disp : dict        file名 -> display名
         disp_to_file : dict        display名 -> file名
+        disp_to_path : dict        display名 -> ステージパス (例: "0003/0001")
     """
     with open(MKCD_MAP_FILE, encoding="utf-8") as f:
         entries = json.load(f)
     displays = [e["display"] for e in entries]
     file_to_disp = {e["file"]: e["display"] for e in entries}
     disp_to_file = {e["display"]: e["file"] for e in entries}
-    return displays, file_to_disp, disp_to_file
+    disp_to_path = {e["display"]: e.get("path", "") for e in entries}
+    return displays, file_to_disp, disp_to_file, disp_to_path
 
 
 def detect_pc_names(max_pc: int = 10):
@@ -132,15 +134,16 @@ $jobs | ForEach-Object {{
     return fallback_pcs
 
 
-def launch_pc(pc_name, student, mkcd_file, site_url, mkcd_share):
+def launch_pc(pc_name, student, mkcd_file, site_url, mkcd_share, stage_path=""):
     """HTTP POST で生徒PCのトリガーサーバーに agent.py を起動させる"""
     mkcd_path = mkcd_share.rstrip("\\") + "\\" + mkcd_file
     payload = json.dumps({
-        "token":    TRIGGER_TOKEN,
-        "login_id": student["login_id"],
-        "login_pw": student["login_pw"],
-        "mkcd_path": mkcd_path,
-        "site_url":  site_url,
+        "token":      TRIGGER_TOKEN,
+        "login_id":   student["login_id"],
+        "login_pw":   student["login_pw"],
+        "mkcd_path":  mkcd_path,
+        "site_url":   site_url,
+        "stage_path": stage_path,
     }).encode("utf-8")
 
     url = f"http://{pc_name}:{TRIGGER_PORT}/start"
@@ -174,7 +177,7 @@ class TeacherApp(tk.Tk):
         self.configure(bg="#f0f0f0")
 
         self.data = load_data()
-        self.mkcd_displays, self.file_to_disp, self.disp_to_file = load_mkcd_map()
+        self.mkcd_displays, self.file_to_disp, self.disp_to_file, self.disp_to_path = load_mkcd_map()
         self.pc_names = detect_pc_names()  # ネットワークからPC検出
         self._separators: set[str] = set()
         self.pc_student_vars: dict[str, tk.StringVar] = {}
@@ -357,8 +360,9 @@ class TeacherApp(tk.Tk):
             if stage_disp == STAGE_UNSET:
                 continue
 
-            mkcd_file = self.disp_to_file.get(stage_disp, stage_disp)
-            assignments[pc] = (student, mkcd_file)
+            mkcd_file  = self.disp_to_file.get(stage_disp, stage_disp)
+            stage_path = self.disp_to_path.get(stage_disp, "")
+            assignments[pc] = (student, mkcd_file, stage_path)
 
         if skipped_no_student:
             log.warning("生徒未割当のためスキップ: %s", ', '.join(skipped_no_student))
@@ -376,11 +380,12 @@ class TeacherApp(tk.Tk):
             lock = threading.Lock()
             threads = []
 
-            def run(pc, student, mkcd_file):
+            def run(pc, student, mkcd_file, stage_path):
                 ok = launch_pc(
                     pc, student, mkcd_file,
                     self.data["site_url"],
                     self.data["mkcd_share"],
+                    stage_path,
                 )
                 with lock:
                     results[pc] = ok
@@ -388,8 +393,8 @@ class TeacherApp(tk.Tk):
                     self.status_label.config(
                         text=f"起動中… ({done}/{len(assignments)})")
 
-            for pc, (student, mkcd_file) in assignments.items():
-                t = threading.Thread(target=run, args=(pc, student, mkcd_file), daemon=True)
+            for pc, (student, mkcd_file, stage_path) in assignments.items():
+                t = threading.Thread(target=run, args=(pc, student, mkcd_file, stage_path), daemon=True)
                 threads.append(t)
                 t.start()
 
@@ -408,8 +413,8 @@ class TeacherApp(tk.Tk):
             self.refresh_btn.config(state="normal")
 
             # last_assignment / last_stage を保存
-            self.data["last_assignment"] = {pc: s["id"] for pc, (s, _) in assignments.items()}
-            self.data["last_stage"] = {pc: f for pc, (_, f) in assignments.items()}
+            self.data["last_assignment"] = {pc: s["id"] for pc, (s, _, _p) in assignments.items()}
+            self.data["last_stage"] = {pc: f for pc, (_, f, _p) in assignments.items()}
             save_data(self.data)
             log.info("割り当て保存完了: %s", self.data["last_assignment"])
 

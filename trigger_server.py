@@ -69,24 +69,22 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(403, {"error": "forbidden"})
             return
 
-        login_id  = payload.get("login_id",  "")
-        login_pw  = payload.get("login_pw",  "")
-        mkcd_path = payload.get("mkcd_path", "")
-        site_url  = payload.get("site_url",  "")
+        login_id   = payload.get("login_id",   "")
+        login_pw   = payload.get("login_pw",   "")
+        mkcd_path  = payload.get("mkcd_path",  "")
+        site_url   = payload.get("site_url",   "")
+        stage_path = payload.get("stage_path", "")
 
         # EXE時は agent.exe を直接呼ぶ。スクリプト時は python interpreter 経由
-        if getattr(sys, "frozen", False):
-            cmd = [AGENT_PATH,
-                   "--login_id",  login_id,
-                   "--login_pw",  login_pw,
-                   "--mkcd_path", mkcd_path,
-                   "--site_url",  site_url]
-        else:
-            cmd = [sys.executable, AGENT_PATH,
-                   "--login_id",  login_id,
-                   "--login_pw",  login_pw,
-                   "--mkcd_path", mkcd_path,
-                   "--site_url",  site_url]
+        base_cmd = [AGENT_PATH] if getattr(sys, "frozen", False) else [sys.executable, AGENT_PATH]
+        cmd = base_cmd + [
+            "--login_id",  login_id,
+            "--login_pw",  login_pw,
+            "--mkcd_path", mkcd_path,
+            "--site_url",  site_url,
+        ]
+        if stage_path:
+            cmd += ["--stage_path", stage_path]
 
         try:
             # CREATE_NEW_CONSOLE でユーザーセッションの新しいウィンドウとして起動
